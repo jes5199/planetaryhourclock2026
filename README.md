@@ -20,7 +20,8 @@ The design, the dial and the maths are written up in the design doc,
 | --- | --- |
 | Centre screen | Working: clock face, setup by phone or touchscreen, settings saved in flash |
 | Hands | Waiting on hardware (servo driver board) |
-| LEDs | Not started |
+| Dial PCB | Generated (KiCad 9), DRC clean; LED-window test coupon ready to order |
+| LED board | Not started |
 | Power | Not decided |
 
 ## Hardware
@@ -35,4 +36,5 @@ The design, the dial and the maths are written up in the design doc,
 ## Layout
 
 - `firmware/`: the screen board's firmware (PlatformIO). See [`firmware/README.md`](firmware/README.md).
+- `hardware/`: the PCBs, generated as KiCad source. See [`hardware/README.md`](hardware/README.md).
 - `tools/`: scripts that generate the firmware's time-zone and city tables, and their source data.

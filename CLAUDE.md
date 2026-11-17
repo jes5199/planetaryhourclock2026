@@ -30,6 +30,15 @@ A build can quietly swap PlatformIO Core for a `6.2.0.post1` that then refuses t
 Other envs: `preview` forces the ruling planet (`PREVIEW_RULER` in `platformio.ini`) to check
 colours; `bench` times screen redraws at boot.
 
+## PCBs (hardware/)
+
+Boards are generated, not hand-edited: `hardware/gen_dial.py` and `gen_coupon.py` write KiCad 9
+`.kicad_pcb` source (s-expressions appended to `template.kicad_pcb`, via `kicadart.py`). Run them
+with `hardware/.venv/bin/python`, then `hardware/render.sh <board>` for DRC, an SVG and a 3D
+render (look at the PNG). The dial's geometry comes from mockup N (`RingLeds.dc.html`) in the
+"Planetary Hours Dial" design canvas, at 23/102 mm per SVG unit. The user's other repos
+(jes5199/astrolabium, jes5199/clockwork) generate KiCad source the same way.
+
 ## Talking to the clock over serial
 
 115200 baud. The clock prints its own command list at boot, on USB connect, and on `help`.

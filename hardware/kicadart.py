@@ -215,7 +215,7 @@ class Board:
         size = pad if plated else d
         layers = '"*.Cu" "*.Mask"' if plated else '"*.Cu" "*.Mask"'
         self.items.append(
-            f'\t(footprint "art:Hole_{d}mm"\n\t\t(layer "F.Cu")\n\t\t(uuid "{uuid.uuid4()}")\n'
+            f'\t(footprint "Hole_{d}mm"\n\t\t(layer "F.Cu")\n\t\t(uuid "{uuid.uuid4()}")\n'
             f'\t\t(at {x + self.cx:.4f} {y + self.cy:.4f})\n'
             f'\t\t(property "Reference" "{ref}" (at 0 0 0) (layer "F.Fab") (hide yes) (uuid "{uuid.uuid4()}") (effects (font (size 1 1) (thickness 0.15))))\n'
             f'\t\t(property "Value" "hole" (at 0 0 0) (layer "F.Fab") (hide yes) (uuid "{uuid.uuid4()}") (effects (font (size 1 1) (thickness 0.15))))\n'
