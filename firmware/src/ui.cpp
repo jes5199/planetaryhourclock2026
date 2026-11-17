@@ -52,6 +52,7 @@ lv_obj_t* timeLabel;
 lv_obj_t* rulerLabel;
 lv_obj_t* spanLabel;
 lv_obj_t* lengthLabel;
+lv_obj_t* countdownLabel;
 lv_point_t hourHandPts[2];
 
 // Dial angles are clockwise from the top (sunrise left, noon top, sunset right, midnight
@@ -158,6 +159,7 @@ void begin() {
   rulerLabel = makeLabel(textBox, &lv_font_montserrat_48, lv_color_white(), -4);
   spanLabel = makeLabel(textBox, &lv_font_montserrat_48, lv_color_hex(0xC8C8C8), 46);
   lengthLabel = makeLabel(textBox, &lv_font_montserrat_48, lv_color_hex(0x9A9A9A), 96);
+  countdownLabel = makeLabel(textBox, &lv_font_montserrat_28, lv_color_hex(0x707070), 140);
 }
 
 void update(const planetary::ClockState& s, time_t now) {
@@ -176,6 +178,10 @@ void update(const planetary::ClockState& s, time_t now) {
   lv_label_set_text(spanLabel, buf);
   snprintf(buf, sizeof buf, "%d min", static_cast<int>(std::lround(s.hourLengthMin)));
   lv_label_set_text(lengthLabel, buf);
+  // Time left in this hour, counting down (minutes can pass 59 in a long hour).
+  const long left = s.hourEnd > now ? static_cast<long>(s.hourEnd - now) : 0;
+  snprintf(buf, sizeof buf, "%ld:%02ld left", left / 60, left % 60);
+  lv_label_set_text(countdownLabel, buf);
 
   lv_obj_set_style_arc_color(arc, pal.arc, LV_PART_MAIN);
   lv_arc_set_bg_angles(arc, toLv(s.arcStartDeg), toLv(s.arcStartDeg + s.arcSpanDeg));
