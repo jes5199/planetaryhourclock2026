@@ -8,7 +8,7 @@
 
 namespace ui {
 
-void begin(int rotationCw);  // same rotation as passed to amoled_init
+void begin();
 void update(const planetary::ClockState& s, time_t now);
 
 }  // namespace ui

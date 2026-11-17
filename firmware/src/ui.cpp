@@ -53,19 +53,17 @@ lv_obj_t* rulerLabel;
 lv_obj_t* spanLabel;
 lv_obj_t* lengthLabel;
 lv_point_t hourHandPts[2];
-double screenRotation = 0;  // the display rotates our drawing clockwise by this much
 
-
-// Dial angles are clockwise from the top as the viewer sees it; LVGL's are clockwise from
-// 3 o'clock in the unrotated frame. Undo the display rotation so the arc stays aligned
-// with the dial (sunrise left, noon top, sunset right, midnight bottom).
+// Dial angles are clockwise from the top (sunrise left, noon top, sunset right, midnight
+// bottom); LVGL's are clockwise from 3 o'clock. The display driver's rotation already
+// makes LVGL's frame the viewer's frame, so nothing else is needed here.
 uint16_t toLv(double deg) {
-  int a = static_cast<int>(std::lround(deg - screenRotation + 270.0 + 360.0)) % 360;
+  int a = static_cast<int>(std::lround(deg + 270.0)) % 360;
   return static_cast<uint16_t>(a < 0 ? a + 360 : a);
 }
 
 lv_point_t polar(double deg, int radius) {
-  const double r = (deg - screenRotation) * M_PI / 180.0;
+  const double r = deg * M_PI / 180.0;
   return {static_cast<lv_coord_t>(std::lround(kCx + radius * std::sin(r))),
           static_cast<lv_coord_t>(std::lround(kCy - radius * std::cos(r)))};
 }
@@ -121,8 +119,7 @@ void formatHm(time_t t, char* out, size_t n) {
 
 }  // namespace
 
-void begin(int rotationCw) {
-  screenRotation = rotationCw;
+void begin() {
   lv_obj_t* scr = lv_scr_act();
   lv_obj_set_style_bg_color(scr, lv_color_black(), 0);
   lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
