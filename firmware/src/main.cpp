@@ -24,7 +24,6 @@ namespace {
 constexpr int kPinI2cSda = 47;
 constexpr int kPinI2cScl = 48;
 
-Settings settings = defaultSettings();
 volatile bool ntpSynced = false;
 
 void setSystemTime(time_t utc) {
@@ -55,8 +54,7 @@ int32_t utcOffset(time_t utc) {
 }
 
 void initTime() {
-  setenv("TZ", settings.timezone, 1);
-  tzset();
+  settings::applyTimezone();
 
   // An RTC reading older than this firmware must be stale (e.g. the factory demo's clock).
   const time_t built = buildTime();
@@ -75,7 +73,7 @@ void initTime() {
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   sntp_set_time_sync_notification_cb([](timeval*) { ntpSynced = true; });
-  configTzTime(settings.timezone, "pool.ntp.org", "time.nist.gov");
+  configTzTime(settings::current().tz, "pool.ntp.org", "time.nist.gov");
   Serial.println("time: NTP requested");
 #endif
 }
@@ -97,9 +95,10 @@ void setup() {
   Serial.begin(115200);
   Wire.begin(kPinI2cSda, kPinI2cScl);
 
+  settings::load();
   initTime();
 
-  amoled_init(settings.screenRotation);
+  amoled_init(settings::current().screenRotation);
   ui::begin();
 }
 
@@ -117,14 +116,15 @@ void loop() {
   const time_t now = time(nullptr);
   if (now != lastShown) {
     lastShown = now;
-    planetary::ClockState s = planetary::computeClock(now, utcOffset(now), settings.location);
+    planetary::ClockState s = planetary::computeClock(now, utcOffset(now), settings::current().location);
 #ifdef PREVIEW_RULER
     // Design preview: show a fixed ruling planet (Chaldean index, Saturn = 0 ... Moon = 6).
     s.ruler = static_cast<planetary::Planet>(PREVIEW_RULER);
 #endif
     ui::update(s, now);
 
-    const int brightness = s.isDay ? settings.brightnessDay : settings.brightnessNight;
+    const Settings& cfg = settings::current();
+    const int brightness = s.isDay ? cfg.brightnessDay : cfg.brightnessNight;
     if (brightness != lastBrightness) {
       amoled_set_brightness(static_cast<uint8_t>(brightness));
       lastBrightness = brightness;
