@@ -234,7 +234,6 @@ void buildCoords() {
   lv_roller_set_options(coordRollers[1], numberList(0, 89, "%d").c_str(), LV_ROLLER_MODE_NORMAL);
   coordRollers[2] = makeRoller(coordScreen, 76, 78, -52, 3);
   lv_roller_set_options(coordRollers[2], numberList(0, 9, ".%d").c_str(), LV_ROLLER_MODE_INFINITE);
-  makeLabel(coordScreen, "o", kDim, 124, -66);
 
   coordRollers[3] = makeRoller(coordScreen, 64, -106, 60, 3);
   lv_roller_set_options(coordRollers[3], "E\nW", LV_ROLLER_MODE_NORMAL);
@@ -242,7 +241,6 @@ void buildCoords() {
   lv_roller_set_options(coordRollers[4], numberList(0, 179, "%d").c_str(), LV_ROLLER_MODE_NORMAL);
   coordRollers[5] = makeRoller(coordScreen, 76, 78, 60, 3);
   lv_roller_set_options(coordRollers[5], numberList(0, 9, ".%d").c_str(), LV_ROLLER_MODE_INFINITE);
-  makeLabel(coordScreen, "o", kDim, 124, 46);
   makeButton(coordScreen, "Save", kBottomY, saveCoords, true);
 }
 
