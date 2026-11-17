@@ -92,7 +92,6 @@ void initTime() {
 
 // LVGL input from the touch panel, in screen (rotated) coordinates.
 void touchRead(lv_indev_drv_t*, lv_indev_data_t* data) {
-  static bool wasDown = false;
   uint16_t px, py;
   const bool down = touch::read(&px, &py);
   if (down) {
@@ -100,13 +99,11 @@ void touchRead(lv_indev_drv_t*, lv_indev_data_t* data) {
     amoled_panel_to_screen(px, py, &x, &y);
     data->point.x = x;
     data->point.y = y;
-    if (!wasDown) Serial.printf("touch: down at %d,%d\n", x, y);
     data->state = LV_INDEV_STATE_PRESSED;
     setup_mode::touched();
   } else {
     data->state = LV_INDEV_STATE_RELEASED;
   }
-  wasDown = down;
 }
 
 void logState(const planetary::ClockState& s, time_t now) {
@@ -124,6 +121,9 @@ void logState(const planetary::ClockState& s, time_t now) {
 
 void setup() {
   Serial.begin(115200);
+  // Never block on the log: with USB serial and no reader on the host, each print would
+  // otherwise wait for a timeout and make the touchscreen stutter.
+  Serial.setTxTimeoutMs(0);
   Wire.begin(kPinI2cSda, kPinI2cScl);
 
   settings::load();
