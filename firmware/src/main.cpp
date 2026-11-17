@@ -58,13 +58,17 @@ void initTime() {
   setenv("TZ", settings.timezone, 1);
   tzset();
 
+  // An RTC reading older than this firmware must be stale (e.g. the factory demo's clock).
+  const time_t built = buildTime();
   time_t t;
-  if (rtc::begin() && rtc::read(&t)) {
+  const bool haveRtc = rtc::begin();
+  if (haveRtc && rtc::read(&t) && t >= built) {
     setSystemTime(t);
     Serial.println("time: from RTC");
   } else {
-    setSystemTime(buildTime());
-    Serial.println("time: RTC invalid, using build time");
+    setSystemTime(built);
+    if (haveRtc) rtc::write(built);
+    Serial.println("time: RTC unset or stale, using build time");
   }
 
 #if defined(WIFI_SSID)
