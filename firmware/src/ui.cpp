@@ -7,6 +7,10 @@
 #include "amoled.h"
 #include "lvgl.h"
 
+extern "C" {
+LV_FONT_DECLARE(font_time_96)  // Montserrat Medium 96 px, digits and colon (src/fonts)
+}
+
 namespace ui {
 
 namespace {
@@ -23,12 +27,20 @@ struct Palette {
   lv_color_t arcDone;    // the part of the day (or night) already past
   lv_color_t arcToCome;  // the part still to come
   lv_color_t sun;        // the day hand
-  lv_color_t ruler;      // planet name
 };
-const Palette kDay{lv_color_hex(0xF0A830), lv_color_hex(0x4A3510), lv_color_hex(0xFFE066),
-                   lv_color_hex(0xF2B84B)};
-const Palette kNight{lv_color_hex(0x6A5CFF), lv_color_hex(0x221D52), lv_color_hex(0xDCE6FF),
-                     lv_color_hex(0xA9C8FF)};
+const Palette kDay{lv_color_hex(0xF0A830), lv_color_hex(0x4A3510), lv_color_hex(0xFFE066)};
+const Palette kNight{lv_color_hex(0x6A5CFF), lv_color_hex(0x221D52), lv_color_hex(0xDCE6FF)};
+// Planet colours from jes5199/dirigible (app/assets/stylesheets/planets.css), in Chaldean
+// order. Saturn uses dirigible's lifted #A9A9A9, since #696969 nearly vanishes on black.
+const lv_color_t kPlanetColor[7] = {
+    lv_color_hex(0xA9A9A9),  // Saturn
+    lv_color_hex(0x9370DB),  // Jupiter
+    lv_color_hex(0xFF6347),  // Mars
+    lv_color_hex(0xFFD700),  // Sun
+    lv_color_hex(0x90EE90),  // Venus
+    lv_color_hex(0x87CEEB),  // Mercury
+    lv_color_hex(0xFFFFFF),  // Moon
+};
 const lv_color_t kHourHand = lv_color_hex(0xFFFFFF);
 const lv_color_t kTrack = lv_color_hex(0x1A1A1A);
 
@@ -89,9 +101,9 @@ void placeDisc(lv_obj_t* d, int size, double deg, int radius) {
   lv_obj_set_pos(d, p.x - size / 2, p.y - size / 2);
 }
 
-lv_obj_t* makeLabel(lv_obj_t* parent, lv_color_t color, int y) {
+lv_obj_t* makeLabel(lv_obj_t* parent, const lv_font_t* font, lv_color_t color, int y) {
   lv_obj_t* l = lv_label_create(parent);
-  lv_obj_set_style_text_font(l, &lv_font_montserrat_48, 0);
+  lv_obj_set_style_text_font(l, font, 0);
   lv_obj_set_style_text_color(l, color, 0);
   lv_obj_align(l, LV_ALIGN_CENTER, 0, y);
   lv_label_set_text(l, "");
@@ -140,10 +152,10 @@ void begin() {
   lv_obj_set_style_pad_all(textBox, 0, 0);
   lv_obj_clear_flag(textBox, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
 
-  timeLabel = makeLabel(textBox, lv_color_white(), -84);
-  rulerLabel = makeLabel(textBox, kDay.ruler, -30);
-  spanLabel = makeLabel(textBox, lv_color_hex(0xC8C8C8), 24);
-  lengthLabel = makeLabel(textBox, lv_color_hex(0x9A9A9A), 78);
+  timeLabel = makeLabel(textBox, &font_time_96, lv_color_white(), -88);
+  rulerLabel = makeLabel(textBox, &lv_font_montserrat_48, lv_color_white(), -22);
+  spanLabel = makeLabel(textBox, &lv_font_montserrat_48, lv_color_hex(0xC8C8C8), 28);
+  lengthLabel = makeLabel(textBox, &lv_font_montserrat_48, lv_color_hex(0x9A9A9A), 78);
 }
 
 void update(const planetary::ClockState& s, time_t now) {
@@ -154,7 +166,7 @@ void update(const planetary::ClockState& s, time_t now) {
   lv_label_set_text(timeLabel, buf);
 
   lv_label_set_text(rulerLabel, planetary::planetName(s.ruler));
-  lv_obj_set_style_text_color(rulerLabel, pal.ruler, 0);
+  lv_obj_set_style_text_color(rulerLabel, kPlanetColor[static_cast<int>(s.ruler)], 0);
 
   formatHm(s.hourStart, a, sizeof a);
   formatHm(s.hourEnd, b, sizeof b);
