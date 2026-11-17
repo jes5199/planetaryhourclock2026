@@ -1,7 +1,8 @@
 // Planetary hour clock: centre-screen firmware for the Waveshare ESP32-S3-Touch-AMOLED-1.43.
 //
-// Time comes from, in order of preference: NTP over Wi-Fi (if secrets.h provides
-// credentials), the on-board PCF85063 RTC, or the firmware's build time.
+// Time comes from, in order of preference: the phone during setup (long-press the screen),
+// NTP over Wi-Fi (if secrets.h provides credentials), the on-board PCF85063 RTC, or the
+// firmware's build time.
 #include <Arduino.h>
 #include <WiFi.h>
 #include <Wire.h>
@@ -12,7 +13,9 @@
 #include "planetary.h"
 #include "rtc.h"
 #include "settings.h"
+#include "setup_mode.h"
 #include "sun.h"
+#include "touch.h"
 #include "ui.h"
 
 #if __has_include("secrets.h")
@@ -100,6 +103,10 @@ void setup() {
 
   amoled_init(settings::current().screenRotation);
   ui::begin();
+
+  touch::begin();
+  setup_mode::begin();
+  if (!settings::saved()) setup_mode::start();  // a new clock opens setup by itself
 }
 
 void loop() {
@@ -134,6 +141,13 @@ void loop() {
       logState(s, now);
     }
   }
+
+  // Long-press anywhere toggles setup mode.
+  if (touch::longPress(1500)) {
+    if (setup_mode::active()) setup_mode::stop();
+    else setup_mode::start();
+  }
+  setup_mode::loop();
 
   lv_timer_handler();
   delay(5);

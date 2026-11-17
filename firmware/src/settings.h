@@ -21,6 +21,7 @@ namespace settings {
 Settings defaults();          // Portland, Oregon
 Settings& current();          // the live settings
 void load();                  // read from flash (falls back to defaults)
+bool saved();                 // true if settings were found in flash at load()
 void save();                  // write current() to flash
 void applyTimezone();         // push current().tz into the C library
 

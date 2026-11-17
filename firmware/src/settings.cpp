@@ -13,6 +13,7 @@ constexpr const char* kNamespace = "clock";
 constexpr uint16_t kVersion = 1;  // bump when the stored layout changes
 
 Settings live = defaults();
+bool wasSaved = false;
 
 void copy(char* dst, size_t n, const char* src) {
   strncpy(dst, src, n - 1);
@@ -35,11 +36,15 @@ Settings defaults() {
 
 Settings& current() { return live; }
 
+bool saved() { return wasSaved; }
+
 void load() {
   Preferences p;
   live = defaults();
-  if (!p.begin(kNamespace, true)) return;  // nothing saved yet
+  wasSaved = false;
+  if (!p.begin(kNamespace, false)) return;
   if (p.getUShort("ver", 0) == kVersion) {
+    wasSaved = true;
     live.location.latDeg = p.getDouble("lat", live.location.latDeg);
     live.location.lonDeg = p.getDouble("lon", live.location.lonDeg);
     p.getString("place", live.place, sizeof live.place);
