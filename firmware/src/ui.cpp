@@ -175,7 +175,12 @@ void update(const planetary::ClockState& s, time_t now) {
   lv_label_set_text(timeLabel, buf);
 
   lv_label_set_text(rulerLabel, planetary::planetName(s.ruler));
-  lv_obj_set_style_text_color(rulerLabel, kPlanetColor[static_cast<int>(s.ruler)], 0);
+  // The planet's colour: full for its name, dimmed for the lines under it.
+  const lv_color_t planet = kPlanetColor[static_cast<int>(s.ruler)];
+  lv_obj_set_style_text_color(rulerLabel, planet, 0);
+  lv_obj_set_style_text_color(spanLabel, lv_color_mix(planet, lv_color_black(), 200), 0);       // 78%
+  lv_obj_set_style_text_color(lengthLabel, lv_color_mix(planet, lv_color_black(), 154), 0);     // 60%
+  lv_obj_set_style_text_color(countdownLabel, lv_color_mix(planet, lv_color_black(), 112), 0);  // 44%
 
   formatHm(s.hourStart, a, sizeof a);
   formatHm(s.hourEnd, b, sizeof b);
