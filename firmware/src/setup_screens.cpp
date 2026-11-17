@@ -78,6 +78,10 @@ lv_obj_t* makeButton(lv_obj_t* parent, const char* text, int y, lv_event_cb_t cb
   lv_obj_align(b, LV_ALIGN_CENTER, 0, y);
   lv_obj_set_style_radius(b, kButtonH / 2, 0);
   lv_obj_set_style_bg_color(b, primary ? kAccent : lv_color_hex(0x2A2A36), 0);
+  // Obvious feedback while pressed: brighter and slightly smaller.
+  lv_obj_set_style_bg_color(b, primary ? lv_color_hex(0xFFE3A0) : lv_color_hex(0x5A5A70), LV_STATE_PRESSED);
+  lv_obj_set_style_transform_width(b, -6, LV_STATE_PRESSED);
+  lv_obj_set_style_transform_height(b, -4, LV_STATE_PRESSED);
   lv_obj_set_ext_click_area(b, 12);
   lv_obj_add_event_cb(b, cb, LV_EVENT_CLICKED, nullptr);
   lv_obj_t* l = lv_label_create(b);

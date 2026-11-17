@@ -140,6 +140,26 @@ void setup() {
   lv_indev_drv_register(&indev);
 
   setup_mode::begin();
+#ifdef BENCH_DISPLAY
+  // Temporary: time full-screen redraws and touch reads.
+  for (int pass = 0; pass < 2; ++pass) {
+    if (pass == 1) setup_mode::start();
+    uint32_t total = 0;
+    for (int i = 0; i < 5; ++i) {
+      lv_obj_invalidate(lv_scr_act());
+      const uint32_t t0 = micros();
+      lv_refr_now(nullptr);
+      total += micros() - t0;
+    }
+    Serial.printf("bench: %s full redraw %lu us\n", pass ? "setup" : "clock", total / 5);
+  }
+  {
+    uint16_t x, y;
+    const uint32_t t0 = micros();
+    for (int i = 0; i < 20; ++i) touch::read(&x, &y);
+    Serial.printf("bench: touch read %lu us\n", (micros() - t0) / 20);
+  }
+#endif
   // A new clock, or one whose RTC lost the time, opens setup by itself.
   if (!settings::saved() || !time_status::valid()) setup_mode::start();
 }
@@ -194,6 +214,9 @@ void loop() {
   }
   setup_mode::loop();
 
+  const uint32_t t0 = millis();
   lv_timer_handler();
-  delay(5);
+  const uint32_t spent = millis() - t0;
+  if (spent > 50 && setup_mode::active()) Serial.printf("slow: lv_timer_handler %lu ms\n", spent);
+  delay(2);
 }
