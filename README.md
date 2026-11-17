@@ -16,4 +16,4 @@ same place on the dial.
 
 ## Layout
 
-- `firmware/`: ESP32 code (in progress)
+- `firmware/`: ESP32 code (PlatformIO); see `firmware/README.md`
