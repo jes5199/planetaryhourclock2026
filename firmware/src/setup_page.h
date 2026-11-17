@@ -29,8 +29,6 @@ static const char kSetupPage[] = R"HTML(<!doctype html>
   .two { display:flex; gap:8px; }
   .msg { color:var(--accent); min-height:1.4em; margin-top:8px; }
   .num { font-variant-numeric: tabular-nums; }
-  details { margin-top:12px; color:var(--dim); }
-  summary { cursor:pointer; }
   footer { color:#666; font-size:13px; margin:18px 0 8px; text-align:center; }
   footer a { color:#888; }
 </style></head>
@@ -42,6 +40,7 @@ static const char kSetupPage[] = R"HTML(<!doctype html>
   <div class="row"><span>Time</span><span id="clockTime" class="num">…</span></div>
   <div class="row"><span>Time zone</span><span id="tzName">…</span></div>
   <div class="row"><span>Place</span><span id="place">…</span></div>
+  <div class="row"><span>Lat, lon</span><span id="latlon" class="num">…</span></div>
   <button id="setTime">Set time from this phone</button>
   <div class="msg" id="timeMsg"></div>
 </section>
@@ -52,15 +51,13 @@ static const char kSetupPage[] = R"HTML(<!doctype html>
   <input id="q" type="search" autocomplete="off" autocapitalize="off" placeholder="Search for a city">
   <div id="results"></div>
   <div class="msg" id="locMsg"></div>
-  <details>
-    <summary>Enter coordinates instead</summary>
-    <div class="two">
+  <h2 style="margin-top:16px">Or coordinates</h2>
+  <div class="two">
       <input id="lat" inputmode="decimal" placeholder="Latitude (N +)">
       <input id="lon" inputmode="decimal" placeholder="Longitude (E +)">
     </div>
     <input id="placeName" placeholder="Place name (optional)">
     <button id="setLoc" class="secondary">Save coordinates</button>
-  </details>
 </section>
 
 <button id="done" class="secondary">Done</button>
@@ -81,10 +78,15 @@ async function refresh() {
   state = await (await fetch('/api/state')).json();
   clockOffsetMs = state.time * 1000 - (t0 + Date.now()) / 2;
   $('tzName').textContent = state.tzName;
-  $('place').textContent = state.place || (state.lat.toFixed(3) + ', ' + state.lon.toFixed(3));
-  if (!$('lat').value) $('lat').value = state.lat;
-  if (!$('lon').value) $('lon').value = state.lon;
-  if (!$('placeName').value) $('placeName').value = state.place || '';
+  $('place').textContent = state.place || '—';
+  $('latlon').textContent = state.lat.toFixed(4) + ', ' + state.lon.toFixed(4);
+  // Keep the coordinate boxes showing the clock's location, unless someone is typing in them.
+  const editing = ['lat', 'lon', 'placeName'].includes(document.activeElement && document.activeElement.id);
+  if (!editing) {
+    $('lat').value = state.lat.toFixed(4);
+    $('lon').value = state.lon.toFixed(4);
+    $('placeName').value = state.place || '';
+  }
 }
 function tick() {
   if (!state) return;
