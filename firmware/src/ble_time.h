@@ -1,10 +1,10 @@
 // Set the clock from an iPhone over Bluetooth LE, the way many bedside clocks do.
 //
 // iOS offers the standard Current Time Service (0x1805) to Bluetooth accessories it has
-// paired with. After a one-time pairing (pairing mode, started from the setup screen),
-// the phone reconnects when it sees the clock advertising; the clock reads the phone's
+// paired with. After a one-time pairing (pairing mode, started from the setup screen), tapping
+// the clock in the iPhone's Settings > Bluetooth connects it; the clock reads the phone's
 // local time and UTC offset, sets itself, and disconnects. Outside setup mode the clock
-// advertises all the time, resting 5 minutes after each sync. Android has no built-in Current
+// advertises all the time (resting 30 s after each sync), so a tap works whenever. Android has no built-in Current
 // Time Service, so Android phones use the QR/Wi-Fi setup instead.
 #pragma once
 

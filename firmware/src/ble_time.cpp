@@ -17,8 +17,10 @@ constexpr uint16_t kCurrentTimeService = 0x1805;
 constexpr uint16_t kCurrentTimeChar = 0x2A2B;
 constexpr uint16_t kLocalTimeInfoChar = 0x2A0F;
 constexpr uint16_t kAppearanceClock = 0x0100;
-// After a sync, rest before advertising again; otherwise a bonded iPhone reconnects at once.
-constexpr uint32_t kRestMs = 5UL * 60 * 1000;
+// After a sync, rest briefly before advertising again, in case a bonded iPhone reconnects at
+// once. (In practice iOS reconnects when the clock is tapped in Settings > Bluetooth, so keep
+// the rest short enough that a second tap works.)
+constexpr uint32_t kRestMs = 30UL * 1000;
 
 NimBLEServer* server = nullptr;
 uint32_t pairingUntil = 0;

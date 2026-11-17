@@ -52,8 +52,9 @@ The setup screen shows a Wi-Fi QR code and two buttons. Either route works on it
 - **With an iPhone, over Bluetooth.** Tap the Bluetooth button right of the QR code, then pair
   with the clock in the iPhone's Settings > Bluetooth (pairing stays open for 2 minutes). The
   clock reads the time from the phone's built-in Current Time Service and disconnects. After
-  that one pairing, the clock advertises whenever setup is closed (resting 5 minutes after
-  each sync), so a nearby iPhone keeps it set without anyone touching the clock. Android phones don't
+  that one pairing, tap the clock in the iPhone's Bluetooth list any time to set it: the clock
+  advertises whenever setup is closed (resting 30 s after each sync). iOS doesn't reconnect on
+  its own after the clock hangs up, so the tap is what triggers a sync. Android phones don't
   offer that service, so they use the QR route.
 
 Long-press the setup screen, tap the ✕ left of the QR code (shown once the clock has a real
