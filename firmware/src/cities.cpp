@@ -1,0 +1,70 @@
+#include "cities.h"
+
+#include <cstdint>
+#include <cstring>
+
+#include "tz.h"
+
+namespace cities {
+
+namespace {
+
+struct City {
+  const char* name;
+  const char* search;  // lowercase ASCII form of the name
+  uint16_t region;
+  uint8_t country;
+  float lat, lon;
+  uint32_t population;
+  int16_t tz;  // index into tz::zoneName(), -1 if unknown
+};
+
+#include "city_table.inc"
+
+constexpr size_t kCount = sizeof kCities / sizeof kCities[0];
+
+bool matches(const char* name, const char* q, size_t qlen) {
+  for (const char* p = name; *p; ++p) {
+    if ((p == name || p[-1] == ' ' || p[-1] == '-') && strncmp(p, q, qlen) == 0) return true;
+  }
+  return false;
+}
+
+Result toResult(const City& c) {
+  return {c.name, kRegions[c.region], kCountries[c.country][1], c.lat, c.lon,
+          c.tz >= 0 ? tz::zoneName(c.tz) : nullptr};
+}
+
+}  // namespace
+
+size_t search(const char* query, const char* preferTz, Result* out, size_t max) {
+  const size_t qlen = strlen(query);
+  if (qlen == 0 || max == 0) return 0;
+  const int preferred = preferTz ? tz::zoneIndex(preferTz) : -1;
+  size_t n = 0;
+  // Two passes: the phone's own time zone first, then everywhere else. The table is
+  // sorted by population, so each pass lists bigger places first.
+  for (int pass = 0; pass < 2 && n < max; ++pass) {
+    if (pass == 0 && preferred < 0) continue;
+    for (size_t i = 0; i < kCount && n < max; ++i) {
+      const City& c = kCities[i];
+      if ((c.tz == preferred) != (pass == 0)) continue;
+      if (matches(c.search, query, qlen)) out[n++] = toResult(c);
+    }
+  }
+  return n;
+}
+
+bool largestIn(const char* tzName, Result* out) {
+  const int z = tz::zoneIndex(tzName);
+  if (z < 0) return false;
+  for (size_t i = 0; i < kCount; ++i) {
+    if (kCities[i].tz == z) {
+      *out = toResult(kCities[i]);
+      return true;
+    }
+  }
+  return false;
+}
+
+}  // namespace cities

@@ -10,6 +10,10 @@ namespace tz {
 // or nullptr if unknown.
 const char* posixFor(const char* ianaName);
 
+// Index of an IANA name (after aliases) in the zone table, or -1; and the reverse.
+int zoneIndex(const char* ianaName);
+const char* zoneName(int index);
+
 // A fixed-offset POSIX string, no daylight saving: minutes east of UTC (e.g. 330 for India).
 void fixedOffset(int minutesEast, char* out, size_t n);
 

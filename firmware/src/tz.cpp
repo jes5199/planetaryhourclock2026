@@ -26,27 +26,37 @@ const Zone kAliases[] = {
     {"UTC", "Etc/UTC"},                         {"GMT", "Etc/UTC"},
 };
 
-const char* lookup(const char* name) {
-  size_t lo = 0, hi = sizeof kZones / sizeof kZones[0];
+constexpr int kZoneCount = sizeof kZones / sizeof kZones[0];
+
+int find(const char* name) {
+  int lo = 0, hi = kZoneCount;
   while (lo < hi) {
-    const size_t mid = (lo + hi) / 2;
+    const int mid = (lo + hi) / 2;
     const int c = strcmp(name, kZones[mid].name);
-    if (c == 0) return kZones[mid].posix;
+    if (c == 0) return mid;
     if (c < 0) hi = mid;
     else lo = mid + 1;
   }
-  return nullptr;
+  return -1;
 }
 
 }  // namespace
 
-const char* posixFor(const char* ianaName) {
-  if (!ianaName || !*ianaName) return nullptr;
-  if (const char* p = lookup(ianaName)) return p;
+int zoneIndex(const char* ianaName) {
+  if (!ianaName || !*ianaName) return -1;
+  const int i = find(ianaName);
+  if (i >= 0) return i;
   for (const Zone& a : kAliases) {
-    if (strcmp(ianaName, a.name) == 0) return lookup(a.posix);
+    if (strcmp(ianaName, a.name) == 0) return find(a.posix);
   }
-  return nullptr;
+  return -1;
+}
+
+const char* zoneName(int index) { return index >= 0 && index < kZoneCount ? kZones[index].name : nullptr; }
+
+const char* posixFor(const char* ianaName) {
+  const int i = zoneIndex(ianaName);
+  return i >= 0 ? kZones[i].posix : nullptr;
 }
 
 void fixedOffset(int minutesEast, char* out, size_t n) {

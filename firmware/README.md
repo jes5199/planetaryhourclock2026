@@ -14,7 +14,7 @@ Centre-screen firmware for the Waveshare ESP32-S3-Touch-AMOLED-1.43 (ESP32-S3R8,
 - Dims at night and drifts the text a few pixels each minute against burn-in.
 - Logs the full clock state over serial once a minute.
 
-Not yet: the mechanical hands, the 102-LED chain, touch, the settings menu, the web app and Bluetooth.
+Not yet: the mechanical hands, the 102-LED chain, and an on-screen settings menu.
 
 ## Time
 
@@ -43,7 +43,24 @@ pio device monitor
 | `src/settings.h` | Location, time zone, brightness. |
 | `test/` | Unity tests run with `pio test -e native`. |
 
-The driver files in `lib/amoled/src/` (`esp_lcd_sh8601.*`, `read_lcd_id_bsp.*`) come from
+## Setting up a clock
+
+Long-press the screen for 1.5 s (a new clock does this by itself). The screen shows a
+QR code: scanning it with a phone camera joins the clock's own Wi-Fi hotspot (WPA2, with a
+password unique to each clock), and the setup page opens. One button sets the time and
+time zone from the phone; a search box picks the nearest city for sunrise and sunset.
+Tap Done, long-press again, or wait 10 minutes to return to the clock.
+
+Phone GPS isn't used: browsers only allow it on HTTPS pages, and a clock's local hotspot
+page can't be HTTPS. The nearest city is accurate to a couple of minutes of sunrise.
+
+## Data and code from others
+
+- City list: [GeoNames](https://www.geonames.org) cities over 15,000 people, CC BY 4.0.
+  Regenerate with `python3 tools/gen_city_table.py`.
+- Time zones: [posix_tz_db](https://github.com/nayarsystems/posix_tz_db), MIT
+  (`tools/data/posix_tz_db/`). Regenerate with `python3 tools/gen_tz_table.py`.
+- The driver files in `lib/amoled/src/` (`esp_lcd_sh8601.*`, `read_lcd_id_bsp.*`) come from
 [waveshareteam/ESP32-S3-Touch-AMOLED-1.43](https://github.com/waveshareteam/ESP32-S3-Touch-AMOLED-1.43)
 under the Apache-2.0 license.
 

@@ -18,75 +18,82 @@ static const char kSetupPage[] = R"HTML(<!doctype html>
   h2 { font-size:15px; color:var(--dim); font-weight:600; margin:0 0 8px; text-transform:uppercase; letter-spacing:.04em; }
   .row { display:flex; justify-content:space-between; gap:12px; margin:4px 0; }
   .row span:first-child { color:var(--dim); }
+  .row span:last-child { text-align:right; }
   button { width:100%; padding:12px; margin-top:10px; border:0; border-radius:10px;
            background:var(--accent); color:#111; font-size:17px; font-weight:600; }
   button.secondary { background:#2a2a36; color:var(--fg); }
-  input { width:100%; padding:10px; margin-top:6px; border-radius:8px; border:1px solid #333;
-          background:#0f0f16; color:var(--fg); font-size:16px; }
+  button.city { background:#20202b; color:var(--fg); text-align:left; font-weight:400; margin-top:6px; }
+  button.city small { color:var(--dim); display:block; font-size:14px; }
+  input { width:100%; padding:12px; margin-top:6px; border-radius:8px; border:1px solid #333;
+          background:#0f0f16; color:var(--fg); font-size:17px; }
   .two { display:flex; gap:8px; }
   .msg { color:var(--accent); min-height:1.4em; margin-top:8px; }
   .num { font-variant-numeric: tabular-nums; }
+  details { margin-top:12px; color:var(--dim); }
+  summary { cursor:pointer; }
+  footer { color:#666; font-size:13px; margin:18px 0 8px; text-align:center; }
+  footer a { color:#888; }
 </style></head>
 <body><main>
 <h1>Planetary hour clock</h1>
 
 <section>
-  <h2>Clock now</h2>
+  <h2>Clock</h2>
   <div class="row"><span>Time</span><span id="clockTime" class="num">…</span></div>
-  <div class="row"><span>Phone</span><span id="phoneTime" class="num">…</span></div>
   <div class="row"><span>Time zone</span><span id="tzName">…</span></div>
   <div class="row"><span>Place</span><span id="place">…</span></div>
-  <div class="row"><span>Lat, lon</span><span id="latlon" class="num">…</span></div>
-</section>
-
-<section>
-  <h2>Time</h2>
-  <div>Sets the clock's time and time zone from this phone.</div>
   <button id="setTime">Set time from this phone</button>
   <div class="msg" id="timeMsg"></div>
 </section>
 
 <section>
   <h2>Location</h2>
-  <div class="two">
-    <input id="lat" inputmode="decimal" placeholder="Latitude (N +)">
-    <input id="lon" inputmode="decimal" placeholder="Longitude (E +)">
-  </div>
-  <input id="placeName" placeholder="Place name (optional)">
-  <button id="useGps" class="secondary">Use this phone's location</button>
-  <button id="setLoc">Save location</button>
+  <div>Choose the nearest city. Sunrise and sunset are worked out from it.</div>
+  <input id="q" type="search" autocomplete="off" autocapitalize="off" placeholder="Search for a city">
+  <div id="results"></div>
   <div class="msg" id="locMsg"></div>
+  <details>
+    <summary>Enter coordinates instead</summary>
+    <div class="two">
+      <input id="lat" inputmode="decimal" placeholder="Latitude (N +)">
+      <input id="lon" inputmode="decimal" placeholder="Longitude (E +)">
+    </div>
+    <input id="placeName" placeholder="Place name (optional)">
+    <button id="setLoc" class="secondary">Save coordinates</button>
+  </details>
 </section>
 
 <button id="done" class="secondary">Done</button>
+<footer>City data © <a href="https://www.geonames.org">GeoNames</a>, CC BY 4.0</footer>
 
 <script>
 const $ = id => document.getElementById(id);
 let clockOffsetMs = 0;  // clock time minus phone time
+let state = null;
 
-function fmt(ms, tz) {
-  try { return new Date(ms).toLocaleString([], {timeZone: tz || undefined, hour12:false}); }
-  catch (e) { return new Date(ms).toLocaleString(); }
-}
 function phoneZone() { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; }
 function phoneOffsetMin() { return -new Date().getTimezoneOffset(); }
+function fold(s) { return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim(); }
+function placeOf(c) { return c.r ? c.n + ', ' + c.r : c.n + ', ' + c.c; }
 
 async function refresh() {
   const t0 = Date.now();
-  const s = await (await fetch('/api/state')).json();
-  clockOffsetMs = s.time * 1000 - (t0 + Date.now()) / 2;
-  window.state = s;
-  $('tzName').textContent = s.tzName;
-  $('place').textContent = s.place || '—';
-  $('latlon').textContent = s.lat.toFixed(4) + ', ' + s.lon.toFixed(4);
-  if (!$('lat').value) $('lat').value = s.lat;
-  if (!$('lon').value) $('lon').value = s.lon;
-  if (!$('placeName').value) $('placeName').value = s.place || '';
+  state = await (await fetch('/api/state')).json();
+  clockOffsetMs = state.time * 1000 - (t0 + Date.now()) / 2;
+  $('tzName').textContent = state.tzName;
+  $('place').textContent = state.place || (state.lat.toFixed(3) + ', ' + state.lon.toFixed(3));
+  if (!$('lat').value) $('lat').value = state.lat;
+  if (!$('lon').value) $('lon').value = state.lon;
+  if (!$('placeName').value) $('placeName').value = state.place || '';
 }
 function tick() {
-  const now = Date.now();
-  if (window.state) $('clockTime').textContent = fmt(now + clockOffsetMs, window.state.tzName);
-  $('phoneTime').textContent = fmt(now) + ' (' + phoneZone() + ')';
+  if (!state) return;
+  try {
+    $('clockTime').textContent = new Date(Date.now() + clockOffsetMs)
+      .toLocaleTimeString([], {timeZone: state.tzName, hour12: false});
+  } catch (e) {
+    $('clockTime').textContent = new Date(Date.now() + clockOffsetMs).toLocaleTimeString();
+  }
 }
 
 async function send(params) {
@@ -99,23 +106,54 @@ $('setTime').onclick = async () => {
   $('timeMsg').textContent = 'Setting…';
   try {
     await send({ time: Date.now(), tz: phoneZone(), off: phoneOffsetMin() });
-    $('timeMsg').textContent = 'Done: clock set to ' + phoneZone() + '.';
+    $('timeMsg').textContent = 'Set to this phone’s time (' + phoneZone() + ').';
   } catch (e) { $('timeMsg').textContent = 'Failed: ' + e.message; }
 };
 
-$('useGps').onclick = () => {
-  if (!navigator.geolocation || !window.isSecureContext) {
-    $('locMsg').textContent = 'This page cannot read GPS (browsers only allow it on secure pages). ' +
-      'Enter coordinates, or use the online setup page.';
-    return;
+function showCities(list, note) {
+  const box = $('results');
+  box.innerHTML = '';
+  if (note) { const d = document.createElement('div'); d.className = 'msg'; d.textContent = note; box.append(d); }
+  for (const c of list) {
+    const b = document.createElement('button');
+    b.className = 'city';
+    b.textContent = c.n;
+    const s = document.createElement('small');
+    s.textContent = [c.r, c.c].filter(Boolean).join(', ');
+    b.append(s);
+    b.onclick = () => chooseCity(c);
+    box.append(b);
   }
-  $('locMsg').textContent = 'Getting location…';
-  navigator.geolocation.getCurrentPosition(p => {
-    $('lat').value = p.coords.latitude.toFixed(4);
-    $('lon').value = p.coords.longitude.toFixed(4);
-    $('locMsg').textContent = 'Got it. Tap Save location.';
-  }, e => { $('locMsg').textContent = 'Location failed: ' + e.message; });
+}
+
+async function chooseCity(c) {
+  $('locMsg').textContent = 'Saving…';
+  const params = { lat: c.lat, lon: c.lon, place: placeOf(c) };
+  if (c.tz) params.tz = c.tz;
+  try {
+    await send(params);
+    $('locMsg').textContent = 'Location set to ' + placeOf(c) + '.';
+    $('q').value = '';
+    showCities([]);
+  } catch (e) { $('locMsg').textContent = 'Failed: ' + e.message; }
+}
+
+let searchTimer = 0, searchSeq = 0;
+$('q').oninput = () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(async () => {
+    const q = fold($('q').value);
+    if (!q) return suggest();
+    const seq = ++searchSeq;
+    const list = await (await fetch('/api/cities?' + new URLSearchParams({ q, tz: phoneZone() }))).json();
+    if (seq === searchSeq) showCities(list, list.length ? '' : 'No city found. Try a nearby larger one.');
+  }, 200);
 };
+
+async function suggest() {
+  const list = await (await fetch('/api/cities?' + new URLSearchParams({ tz: phoneZone() }))).json();
+  showCities(list, list.length ? 'Suggested from your time zone:' : '');
+}
 
 $('setLoc').onclick = async () => {
   const lat = parseFloat($('lat').value), lon = parseFloat($('lon').value);
@@ -136,7 +174,7 @@ $('done').onclick = async () => {
 };
 
 if (new URLSearchParams(location.search).has('saved')) $('locMsg').textContent = 'Saved.';
-refresh().catch(e => { $('tzName').textContent = 'cannot reach clock'; });
+refresh().then(suggest).catch(e => { $('tzName').textContent = 'cannot reach clock'; });
 setInterval(tick, 250);
 </script>
 </main></body></html>

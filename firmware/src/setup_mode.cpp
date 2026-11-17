@@ -12,6 +12,7 @@
 #include <cmath>
 #include <cstring>
 
+#include "cities.h"
 #include "rtc.h"
 #include "settings.h"
 #include "setup_page.h"
@@ -62,6 +63,46 @@ void handleState() {
   server.send(200, "application/json", j);
 }
 
+void appendCity(String& j, const cities::Result& c) {
+  j += "{\"n\":\"";
+  jsonEscape(j, c.name);
+  j += "\",\"r\":\"";
+  jsonEscape(j, c.region);
+  j += "\",\"c\":\"";
+  jsonEscape(j, c.country);
+  j += "\",\"lat\":" + String(c.lat, 4) + ",\"lon\":" + String(c.lon, 4) + ",\"tz\":\"";
+  if (c.tzName) jsonEscape(j, c.tzName);
+  j += "\"}";
+}
+
+// /api/cities?q=<lowercase ascii>&tz=<phone zone>: up to 8 matches.
+// /api/cities?tz=<zone> with no q: the largest city in that zone, as a first guess.
+void handleCities() {
+  cities::Result r[8];
+  size_t n;
+  const String q = server.arg("q"), zone = server.arg("tz");
+  if (q.length()) n = cities::search(q.c_str(), zone.c_str(), r, 8);
+  else n = cities::largestIn(zone.c_str(), r) ? 1 : 0;
+  String j = "[";
+  for (size_t i = 0; i < n; ++i) {
+    if (i) j += ',';
+    appendCity(j, r[i]);
+  }
+  j += "]";
+  server.send(200, "application/json", j);
+}
+
+// Copy UTF-8 text, cutting at a character boundary if it doesn't fit.
+void copyUtf8(char* dst, size_t n, const char* src) {
+  size_t len = strlen(src);
+  if (len >= n) {
+    len = n - 1;
+    while (len > 0 && (static_cast<unsigned char>(src[len]) & 0xC0) == 0x80) --len;
+  }
+  memcpy(dst, src, len);
+  dst[len] = '\0';
+}
+
 void handleSet() {
   Settings& c = settings::current();
   bool changed = false;
@@ -89,7 +130,7 @@ void handleSet() {
       return;
     }
     c.location = {lat, lon};
-    strlcpy(c.place, server.hasArg("place") ? server.arg("place").c_str() : "", sizeof c.place);
+    copyUtf8(c.place, sizeof c.place, server.hasArg("place") ? server.arg("place").c_str() : "");
     changed = true;
   }
   if (server.hasArg("time")) {
@@ -141,6 +182,7 @@ void begin() {
   });
   server.on("/api/state", [] { lastActivity = millis(); handleState(); });
   server.on("/set", [] { lastActivity = millis(); handleSet(); });
+  server.on("/api/cities", [] { lastActivity = millis(); handleCities(); });
   server.on("/done", [] {
     server.send(200, "text/plain", "ok");
     stopRequested = true;

@@ -5,3 +5,4 @@ build/
 sdkconfig.old
 managed_components/
 firmware/src/secrets.h
+tools/data/geonames/
