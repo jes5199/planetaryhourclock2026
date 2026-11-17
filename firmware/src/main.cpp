@@ -117,7 +117,11 @@ void loop() {
   const time_t now = time(nullptr);
   if (now != lastShown) {
     lastShown = now;
-    const planetary::ClockState s = planetary::computeClock(now, utcOffset(now), settings.location);
+    planetary::ClockState s = planetary::computeClock(now, utcOffset(now), settings.location);
+#ifdef PREVIEW_RULER
+    // Design preview: show a fixed ruling planet (Chaldean index, Saturn = 0 ... Moon = 6).
+    s.ruler = static_cast<planetary::Planet>(PREVIEW_RULER);
+#endif
     ui::update(s, now);
 
     const int brightness = s.isDay ? settings.brightnessDay : settings.brightnessNight;
