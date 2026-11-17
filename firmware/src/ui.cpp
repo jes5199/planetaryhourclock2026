@@ -24,12 +24,11 @@ constexpr int kHourHandIn = 188, kHourHandOut = 231;  // the hour hand: a thin n
 constexpr int kDotSize = 12;
 
 struct Palette {
-  lv_color_t arcDone;    // the part of the day (or night) already past
-  lv_color_t arcToCome;  // the part still to come
+  lv_color_t arc;
   lv_color_t sun;        // the day hand
 };
-const Palette kDay{lv_color_hex(0xF0A830), lv_color_hex(0x4A3510), lv_color_hex(0xFFE066)};
-const Palette kNight{lv_color_hex(0x6A5CFF), lv_color_hex(0x221D52), lv_color_hex(0xDCE6FF)};
+const Palette kDay{lv_color_hex(0xE8A33A), lv_color_hex(0xFFE066)};
+const Palette kNight{lv_color_hex(0x5A4FCF), lv_color_hex(0xDCE6FF)};
 // Planet colours from jes5199/dirigible (app/assets/stylesheets/planets.css), in Chaldean
 // order. Saturn uses dirigible's lifted #A9A9A9, since #696969 nearly vanishes on black.
 const lv_color_t kPlanetColor[7] = {
@@ -54,15 +53,19 @@ lv_obj_t* rulerLabel;
 lv_obj_t* spanLabel;
 lv_obj_t* lengthLabel;
 lv_point_t hourHandPts[2];
+double screenRotation = 0;  // the display rotates our drawing clockwise by this much
 
-// Our angles are clockwise from the top; LVGL's are clockwise from 3 o'clock.
+
+// Dial angles are clockwise from the top as the viewer sees it; LVGL's are clockwise from
+// 3 o'clock in the unrotated frame. Undo the display rotation so the arc stays aligned
+// with the dial (sunrise left, noon top, sunset right, midnight bottom).
 uint16_t toLv(double deg) {
-  int a = static_cast<int>(std::lround(deg + 270.0)) % 360;
+  int a = static_cast<int>(std::lround(deg - screenRotation + 270.0 + 360.0)) % 360;
   return static_cast<uint16_t>(a < 0 ? a + 360 : a);
 }
 
 lv_point_t polar(double deg, int radius) {
-  const double r = deg * M_PI / 180.0;
+  const double r = (deg - screenRotation) * M_PI / 180.0;
   return {static_cast<lv_coord_t>(std::lround(kCx + radius * std::sin(r))),
           static_cast<lv_coord_t>(std::lround(kCy - radius * std::cos(r)))};
 }
@@ -118,7 +121,8 @@ void formatHm(time_t t, char* out, size_t n) {
 
 }  // namespace
 
-void begin() {
+void begin(int rotationCw) {
+  screenRotation = rotationCw;
   lv_obj_t* scr = lv_scr_act();
   lv_obj_set_style_bg_color(scr, lv_color_black(), 0);
   lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
@@ -130,8 +134,9 @@ void begin() {
   lv_obj_set_style_arc_opa(track, LV_OPA_TRANSP, LV_PART_INDICATOR);
   lv_arc_set_bg_angles(track, 0, 360);
 
-  // The hour arc: MAIN is the whole day (or night), INDICATOR the part already past.
+  // The hour arc: one colour for the whole day (or night).
   arc = makeArc(kArcRadius, kArcWidth);
+  lv_obj_set_style_arc_opa(arc, LV_OPA_TRANSP, LV_PART_INDICATOR);
 
   // The day hand is the sun riding the arc; a black rim lifts it off the arc.
   sun = makeDisc(kSunSize, kDay.sun, 3);
@@ -152,10 +157,10 @@ void begin() {
   lv_obj_set_style_pad_all(textBox, 0, 0);
   lv_obj_clear_flag(textBox, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
 
-  timeLabel = makeLabel(textBox, &font_time_96, lv_color_white(), -88);
-  rulerLabel = makeLabel(textBox, &lv_font_montserrat_48, lv_color_white(), -22);
-  spanLabel = makeLabel(textBox, &lv_font_montserrat_48, lv_color_hex(0xC8C8C8), 28);
-  lengthLabel = makeLabel(textBox, &lv_font_montserrat_48, lv_color_hex(0x9A9A9A), 78);
+  timeLabel = makeLabel(textBox, &font_time_96, lv_color_white(), -70);
+  rulerLabel = makeLabel(textBox, &lv_font_montserrat_48, lv_color_white(), -4);
+  spanLabel = makeLabel(textBox, &lv_font_montserrat_48, lv_color_hex(0xC8C8C8), 46);
+  lengthLabel = makeLabel(textBox, &lv_font_montserrat_48, lv_color_hex(0x9A9A9A), 96);
 }
 
 void update(const planetary::ClockState& s, time_t now) {
@@ -175,11 +180,8 @@ void update(const planetary::ClockState& s, time_t now) {
   snprintf(buf, sizeof buf, "%d min", static_cast<int>(std::lround(s.hourLengthMin)));
   lv_label_set_text(lengthLabel, buf);
 
-  // Hour arc, filled from its start up to the sun.
-  lv_obj_set_style_arc_color(arc, pal.arcToCome, LV_PART_MAIN);
-  lv_obj_set_style_arc_color(arc, pal.arcDone, LV_PART_INDICATOR);
+  lv_obj_set_style_arc_color(arc, pal.arc, LV_PART_MAIN);
   lv_arc_set_bg_angles(arc, toLv(s.arcStartDeg), toLv(s.arcStartDeg + s.arcSpanDeg));
-  lv_arc_set_angles(arc, toLv(s.arcStartDeg), toLv(s.screenDayHandDeg));
 
   lv_obj_set_style_bg_color(sun, pal.sun, 0);
   placeDisc(sun, kSunSize, s.screenDayHandDeg, kArcRadius);

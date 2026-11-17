@@ -100,7 +100,7 @@ void setup() {
   initTime();
 
   amoled_init(settings.screenRotation);
-  ui::begin();
+  ui::begin(settings.screenRotation);
 }
 
 void loop() {
