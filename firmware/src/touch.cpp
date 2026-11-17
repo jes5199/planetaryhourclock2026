@@ -12,14 +12,14 @@ constexpr uint32_t kPollMs = 10;
 constexpr uint32_t kTapMaxMs = 350;  // a press shorter than this is a tap
 constexpr uint32_t kTapGapMs = 450;  // taps closer together than this count as a series
 
-bool down = false;
-uint16_t lastX = 0, lastY = 0;
-uint32_t lastPoll = 0;
-uint32_t downSince = 0;
-uint32_t lastTapEnd = 0;
-int tapCount = 0;
-bool longFired = false;
-bool tripleReady = false;
+// Shared between the polling task and loop(); single words, read and written whole.
+volatile bool down = false;
+volatile uint16_t lastX = 0, lastY = 0;
+volatile uint32_t downSince = 0;
+volatile bool longFired = false;
+volatile bool tripleReady = false;
+uint32_t lastTapEnd = 0;  // polling task only
+int tapCount = 0;         // polling task only
 
 bool readRegs(uint8_t reg, uint8_t* buf, uint8_t len) {
   Wire.beginTransmission(kAddr);
@@ -40,20 +40,8 @@ bool poll(uint16_t* x, uint16_t* y) {
   return true;
 }
 
-}  // namespace
-
-bool begin() {
-  Wire.beginTransmission(kAddr);
-  Wire.write(0x00);  // device mode register
-  Wire.write(0x00);  // normal operating mode
-  return Wire.endTransmission() == 0;
-}
-
 void update() {
   const uint32_t now = millis();
-  if (now - lastPoll < kPollMs) return;
-  lastPoll = now;
-
   uint16_t x, y;
   const bool isDown = poll(&x, &y);
   if (isDown) {
@@ -75,6 +63,24 @@ void update() {
     longFired = false;
   }
   down = isDown;
+}
+
+void pollTask(void*) {
+  for (;;) {
+    update();  // Wire has its own bus lock, so this can share the bus with the RTC
+    vTaskDelay(pdMS_TO_TICKS(kPollMs));
+  }
+}
+
+}  // namespace
+
+bool begin() {
+  Wire.beginTransmission(kAddr);
+  Wire.write(0x00);  // device mode register
+  Wire.write(0x00);  // normal operating mode
+  const bool ok = Wire.endTransmission() == 0;
+  xTaskCreatePinnedToCore(pollTask, "touch", 3072, nullptr, 2, nullptr, 1);
+  return ok;
 }
 
 bool read(uint16_t* x, uint16_t* y) {

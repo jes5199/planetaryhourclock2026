@@ -188,8 +188,6 @@ void loop() {
     Serial.println("time: NTP synced, RTC updated");
   }
 
-  touch::update();
-
   // Triple-tap the clock face: start or stop a demo week.
   if (touch::tripleTap() && !setup_mode::active() && ui::onClock() && time_status::valid()) {
     if (demo::active()) demo::stop();
@@ -199,7 +197,7 @@ void loop() {
   const time_t now = time(nullptr);
   static uint32_t lastDemoDraw = 0;
   const bool demoOn = demo::active();
-  const bool redraw = now != lastShown || (demoOn && millis() - lastDemoDraw >= 40);
+  const bool redraw = now != lastShown || (demoOn && millis() - lastDemoDraw >= 66);
   if (redraw) {
     lastShown = now;
     lastDemoDraw = millis();

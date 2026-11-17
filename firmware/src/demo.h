@@ -1,6 +1,7 @@
 // Demo mode: runs one week of clock time in a few minutes, starting from now, so the whole
 // cycle (days, nights, planetary hours, the midnight jumps) can be watched. Triple-tap the
 // clock face (or send `demo` over serial) to start or stop; it stops by itself after the week.
+// The dial redraws at about 15 frames per second while it runs.
 // The real clock keeps running underneath.
 #pragma once
 
