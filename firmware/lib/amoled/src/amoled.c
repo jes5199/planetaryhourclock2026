@@ -19,7 +19,9 @@
 
 #define LCD_HOST SPI2_HOST
 #define LCD_BITS_PER_PIXEL 16
-#define DRAW_BUF_LINES (AMOLED_HEIGHT / 8)
+// Three buffers of this many lines live in internal DMA RAM (two for LVGL, one for rotation);
+// keep them small enough to leave room for Wi-Fi and Bluetooth.
+#define DRAW_BUF_LINES 38
 
 #define SH8601_ID 0x86  // anything else is treated as CO5300, which needs a 6 px column offset
 
@@ -135,6 +137,8 @@ lv_disp_t* amoled_init(int rotation_cw) {
 
   lv_init();
   const size_t buf_px = AMOLED_WIDTH * DRAW_BUF_LINES;
+  ESP_LOGI(TAG, "internal DMA RAM free %u, largest block %u", (unsigned)heap_caps_get_free_size(MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL),
+           (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL));
   lv_color_t* buf1 = heap_caps_malloc(buf_px * sizeof(lv_color_t), MALLOC_CAP_DMA);
   lv_color_t* buf2 = heap_caps_malloc(buf_px * sizeof(lv_color_t), MALLOC_CAP_DMA);
   assert(buf1 && buf2);

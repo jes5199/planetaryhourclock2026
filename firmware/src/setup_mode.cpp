@@ -211,6 +211,8 @@ void stop() {
 
 bool active() { return running; }
 
+const char* deviceName() { return ssid; }
+
 void touched() { lastActivity = millis(); }
 
 void applyTime(long unixSeconds, long micros) {

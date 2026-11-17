@@ -13,6 +13,7 @@
 #include "cities.h"
 #include "lvgl.h"
 #include "settings.h"
+#include "ble_time.h"
 #include "setup_mode.h"
 #include "time_status.h"
 #include "tz.h"
@@ -34,6 +35,9 @@ lv_obj_t* homeScreen;
 lv_obj_t* homeQr;
 lv_obj_t* homeInfo;
 lv_obj_t* homeClose;
+lv_obj_t* homeBle;
+const char* homeWifiText = "";
+char homeWifiBuf[48];
 lv_obj_t* timeScreen;
 lv_obj_t* timeRollers[5];  // hour, minute, day, month, year
 lv_obj_t* pickScreen;
@@ -129,10 +133,32 @@ void openPlace(lv_event_t*);
 
 void closeSetup(lv_event_t*) { setup_mode::stop(); }
 
-// The close button only appears once the clock can show a real time.
+void startBlePairing(lv_event_t*) { ble_time::startPairing(); }
+
+lv_obj_t* makeRoundButton(lv_obj_t* parent, const char* symbol, int x, lv_event_cb_t cb) {
+  lv_obj_t* b = lv_btn_create(parent);
+  lv_obj_set_size(b, 72, 72);
+  lv_obj_align(b, LV_ALIGN_CENTER, x, -12);
+  lv_obj_set_style_radius(b, LV_RADIUS_CIRCLE, 0);
+  lv_obj_set_style_bg_color(b, lv_color_hex(0x2A2A36), 0);
+  lv_obj_set_style_bg_color(b, lv_color_hex(0x5A5A70), LV_STATE_PRESSED);
+  lv_obj_set_ext_click_area(b, 14);
+  lv_obj_add_event_cb(b, cb, LV_EVENT_CLICKED, nullptr);
+  lv_obj_t* l = lv_label_create(b);
+  lv_label_set_text(l, symbol);
+  lv_obj_set_style_text_color(l, lv_color_white(), 0);
+  lv_obj_center(l);
+  return b;
+}
+
+// The close button only appears once the clock can show a real time. The line under the QR
+// code shows the Wi-Fi name and password, or the Bluetooth status while there is one.
 void refreshHome(lv_event_t* = nullptr) {
   if (time_status::valid()) lv_obj_clear_flag(homeClose, LV_OBJ_FLAG_HIDDEN);
   else lv_obj_add_flag(homeClose, LV_OBJ_FLAG_HIDDEN);
+  const char* ble = ble_time::status();
+  lv_label_set_text(homeInfo, *ble ? ble : homeWifiText);
+  lv_obj_set_style_bg_color(homeBle, ble_time::pairing() ? lv_color_hex(0x2E6BE6) : lv_color_hex(0x2A2A36), 0);
 }
 
 void buildHome() {
@@ -145,19 +171,9 @@ void buildHome() {
   lv_obj_align(homeQr, LV_ALIGN_CENTER, 0, -12);
   homeInfo = makeLabel(homeScreen, "", kDim, 0, 104);
 
-  // A round close button in the space left of the QR code.
-  homeClose = lv_btn_create(homeScreen);
-  lv_obj_set_size(homeClose, 72, 72);
-  lv_obj_align(homeClose, LV_ALIGN_CENTER, -166, -12);
-  lv_obj_set_style_radius(homeClose, LV_RADIUS_CIRCLE, 0);
-  lv_obj_set_style_bg_color(homeClose, lv_color_hex(0x2A2A36), 0);
-  lv_obj_set_style_bg_color(homeClose, lv_color_hex(0x5A5A70), LV_STATE_PRESSED);
-  lv_obj_set_ext_click_area(homeClose, 14);
-  lv_obj_add_event_cb(homeClose, closeSetup, LV_EVENT_CLICKED, nullptr);
-  lv_obj_t* x = lv_label_create(homeClose);
-  lv_label_set_text(x, LV_SYMBOL_CLOSE);
-  lv_obj_set_style_text_color(x, lv_color_white(), 0);
-  lv_obj_center(x);
+  // Round buttons in the spaces either side of the QR code: close, and Bluetooth pairing.
+  homeClose = makeRoundButton(homeScreen, LV_SYMBOL_CLOSE, -166, closeSetup);
+  homeBle = makeRoundButton(homeScreen, LV_SYMBOL_BLUETOOTH, 166, startBlePairing);
   makeButton(homeScreen, "Place", kBottomY, openPlace, true);
 }
 
@@ -402,11 +418,16 @@ void openPlace(lv_event_t*) {
 void showHome(const char* ssid, const char* password, const char* wifiQr) {
   if (!homeScreen) buildHome();
   lv_qrcode_update(homeQr, wifiQr, strlen(wifiQr));
-  lv_label_set_text_fmt(homeInfo, "%s  %s", ssid, password);
+  snprintf(homeWifiBuf, sizeof homeWifiBuf, "%s  %s", ssid, password);
+  homeWifiText = homeWifiBuf;
   refreshHome();
   lv_scr_load(homeScreen);
 }
 
 bool onHome() { return homeScreen && lv_scr_act() == homeScreen; }
+
+void tick() {
+  if (onHome()) refreshHome();
+}
 
 }  // namespace setup_screens

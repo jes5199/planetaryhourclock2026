@@ -7,5 +7,6 @@ namespace setup_screens {
 
 void showHome(const char* ssid, const char* password, const char* wifiQr);
 bool onHome();  // true while the home (QR) screen is showing
+void tick();    // call about once a second: refreshes status shown on the home screen
 
 }  // namespace setup_screens

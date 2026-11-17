@@ -15,6 +15,7 @@ void begin();          // after settings::load(); creates this clock's hotspot n
 void start();
 void stop();
 bool active();
+const char* deviceName();  // "Planetary 234C": the hotspot and Bluetooth name
 void loop();           // call every loop() iteration
 
 // Shared by the web page and the touchscreen screens. Each saves to flash.

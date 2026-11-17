@@ -49,6 +49,13 @@ The setup screen shows a Wi-Fi QR code and two buttons. Either route works on it
   circle: the screen is only ~36 mm across. (LVGL 8 can't draw a scroll wheel taller than
   8191 px, about 230 rows, which is why the lists are split into steps.)
 
+- **With an iPhone, over Bluetooth.** Tap the Bluetooth button right of the QR code, then pair
+  with the clock in the iPhone's Settings > Bluetooth (pairing stays open for 2 minutes). The
+  clock reads the time from the phone's built-in Current Time Service and disconnects. After
+  that one pairing, the clock advertises whenever it needs the time (at boot, if the time was
+  lost, and every 6 hours) and the iPhone sets it without being asked. Android phones don't
+  offer that service, so they use the QR route.
+
 Long-press the setup screen, tap the ✕ left of the QR code (shown once the clock has a real
 time), tap Done on the phone, or wait 10 minutes to go back to the clock.
 
@@ -100,6 +107,7 @@ cd firmware
 | `src/setup_mode.cpp` | Hotspot, captive portal and web API; shared apply functions. |
 | `src/setup_page.h` | The phone setup page (HTML). |
 | `src/setup_screens.cpp` | On-clock setup: QR home, Time and Place screens. |
+| `src/ble_time.cpp` | Bluetooth LE time sync from an iPhone (Current Time Service), via NimBLE. |
 | `src/settings.cpp` | Settings saved in flash (location, place, time zone, brightness, rotation). |
 | `src/time_status.cpp` | Whether the time is trustworthy; the known-good time in flash. |
 | `src/tz.cpp`, `src/tz_table.inc` | IANA → POSIX time-zone lookup. |

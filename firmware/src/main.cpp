@@ -10,6 +10,7 @@
 #include <sys/time.h>
 
 #include "amoled.h"
+#include "ble_time.h"
 #include "planetary.h"
 #include "rtc.h"
 #include "settings.h"
@@ -140,6 +141,11 @@ void setup() {
   lv_indev_drv_register(&indev);
 
   setup_mode::begin();
+  ble_time::begin(setup_mode::deviceName());
+  Serial.printf("memory: internal free %u, largest %u, psram free %u\n",
+                (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+                (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
+                (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
 #ifdef BENCH_DISPLAY
   // Temporary: time full-screen redraws and touch reads.
   for (int pass = 0; pass < 2; ++pass) {
@@ -191,6 +197,7 @@ void loop() {
     // Design preview: show a fixed ruling planet (Chaldean index, Saturn = 0 ... Moon = 6).
     s.ruler = static_cast<planetary::Planet>(PREVIEW_RULER);
 #endif
+    setup_screens::tick();
     if (time_status::valid()) ui::update(s, now);
     else ui::showTimeNotSet();
 
@@ -213,6 +220,7 @@ void loop() {
     else if (!setup_mode::active() && ui::onClock()) setup_mode::start();
   }
   setup_mode::loop();
+  ble_time::loop();
 
   const uint32_t t0 = millis();
   lv_timer_handler();
