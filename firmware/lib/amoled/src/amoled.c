@@ -48,6 +48,8 @@ static const sh8601_lcd_init_cmd_t co5300_init_cmds[] = {
 static esp_lcd_panel_io_handle_t s_io = NULL;
 static esp_lcd_panel_handle_t s_panel = NULL;
 static int s_x_offset = 0;
+static int s_rotation = 0;            // clockwise degrees: 0, 90, 180, 270
+static lv_color_t* s_rot_buf = NULL;  // DMA buffer holding the rotated area
 
 static bool on_flush_done(esp_lcd_panel_io_handle_t io, esp_lcd_panel_io_event_data_t* edata,
                           void* user_ctx) {
@@ -55,9 +57,37 @@ static bool on_flush_done(esp_lcd_panel_io_handle_t io, esp_lcd_panel_io_event_d
   return false;
 }
 
+// Rotation is done here rather than with LVGL's sw_rotate: LVGL flushes rotated areas in
+// strips whose sizes can be odd, which the panel cannot take (it needs even starts and
+// even sizes) and which shows up as garbled patches. Rotating the whole area keeps the
+// rounder's even alignment. LVGL waits for each flush to finish before the next one, so
+// one rotation buffer is enough.
 static void flush_cb(lv_disp_drv_t* drv, const lv_area_t* area, lv_color_t* color_map) {
-  esp_lcd_panel_draw_bitmap(s_panel, area->x1 + s_x_offset, area->y1, area->x2 + 1 + s_x_offset,
-                            area->y2 + 1, color_map);
+  const int x1 = area->x1, y1 = area->y1, x2 = area->x2, y2 = area->y2;
+  const int w = x2 - x1 + 1, h = y2 - y1 + 1;
+  const int W = AMOLED_WIDTH, H = AMOLED_HEIGHT;
+  int px1 = x1, py1 = y1, px2 = x2, py2 = y2;
+  const lv_color_t* out = color_map;
+
+  if (s_rotation != 0) {
+    lv_color_t* dst = s_rot_buf;
+    const lv_color_t* src = color_map;
+    if (s_rotation == 90) {  // (x, y) -> (W-1-y, x)
+      px1 = W - 1 - y2; px2 = W - 1 - y1; py1 = x1; py2 = x2;
+      for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x) dst[x * h + (h - 1 - y)] = src[y * w + x];
+    } else if (s_rotation == 180) {  // (x, y) -> (W-1-x, H-1-y)
+      px1 = W - 1 - x2; px2 = W - 1 - x1; py1 = H - 1 - y2; py2 = H - 1 - y1;
+      for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x) dst[(h - 1 - y) * w + (w - 1 - x)] = src[y * w + x];
+    } else {  // 270: (x, y) -> (y, H-1-x)
+      px1 = y1; px2 = y2; py1 = H - 1 - x2; py2 = H - 1 - x1;
+      for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x) dst[(w - 1 - x) * h + y] = src[y * w + x];
+    }
+    out = dst;
+  }
+  esp_lcd_panel_draw_bitmap(s_panel, px1 + s_x_offset, py1, px2 + 1 + s_x_offset, py2 + 1, out);
 }
 
 // The controller needs even start and odd end coordinates.
@@ -116,12 +146,12 @@ lv_disp_t* amoled_init(int rotation_cw) {
   disp_drv.flush_cb = flush_cb;
   disp_drv.rounder_cb = rounder_cb;
   disp_drv.draw_buf = &draw_buf;
-  // LVGL's ROT_270 turns the content clockwise by 90 degrees, ROT_90 counter-clockwise.
-  switch (((rotation_cw % 360) + 360) % 360) {
-    case 90: disp_drv.sw_rotate = 1; disp_drv.rotated = LV_DISP_ROT_270; break;
-    case 180: disp_drv.sw_rotate = 1; disp_drv.rotated = LV_DISP_ROT_180; break;
-    case 270: disp_drv.sw_rotate = 1; disp_drv.rotated = LV_DISP_ROT_90; break;
-    default: break;
+
+  s_rotation = ((rotation_cw % 360) + 360) % 360;
+  if (s_rotation % 90 != 0) s_rotation = 0;
+  if (s_rotation != 0) {
+    s_rot_buf = heap_caps_malloc(buf_px * sizeof(lv_color_t), MALLOC_CAP_DMA);
+    assert(s_rot_buf);
   }
   return lv_disp_drv_register(&disp_drv);
 }
