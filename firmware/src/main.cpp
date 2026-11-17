@@ -15,6 +15,7 @@
 #include "rtc.h"
 #include "settings.h"
 #include "setup_mode.h"
+#include "serial_cmd.h"
 #include "setup_screens.h"
 #include "sun.h"
 #include "time_status.h"
@@ -121,6 +122,7 @@ void logState(const planetary::ClockState& s, time_t now) {
 }  // namespace
 
 void setup() {
+  Serial.setTxBufferSize(4096);  // room for the help text without blocking
   Serial.begin(115200);
   // Never block on the log: with USB serial and no reader on the host, each print would
   // otherwise wait for a timeout and make the touchscreen stutter.
@@ -166,6 +168,8 @@ void setup() {
     Serial.printf("bench: touch read %lu us\n", (micros() - t0) / 20);
   }
 #endif
+  serial_cmd::begin();
+
   // A new clock, or one whose RTC lost the time, opens setup by itself.
   if (!settings::saved() || !time_status::valid()) setup_mode::start();
 }
@@ -221,6 +225,7 @@ void loop() {
   }
   setup_mode::loop();
   ble_time::loop();
+  serial_cmd::loop();
 
   const uint32_t t0 = millis();
   lv_timer_handler();

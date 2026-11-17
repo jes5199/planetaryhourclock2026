@@ -174,6 +174,11 @@ void startPairing(uint32_t seconds) {
 
 bool pairing() { return pairingOpen(); }
 bool paired() { return NimBLEDevice::getNumBonds() > 0; }
+
+void forget() {
+  NimBLEDevice::deleteAllBonds();
+  everSynced = false;
+}
 const char* status() {
   if (pairingOpen()) return "Pair in iPhone Bluetooth";
   if (everSynced && millis() - lastSync < 10000) return "Time set by phone";

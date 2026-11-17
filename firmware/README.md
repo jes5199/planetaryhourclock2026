@@ -65,6 +65,23 @@ it shows are ASCII spellings, shortened ("St" for "Saint", "&" for "and", generi
 full city names; search matches the full names.
 The Wi-Fi radio is off whenever setup is closed.
 
+- **From a computer, over USB serial** (115200 baud). The clock prints its command list at boot,
+  when a USB host connects, and on `help`, with a one-line reminder every 10 minutes. Replies
+  start with `ok:` or `error:`; `status` prints one line of JSON.
+
+  | Command | Does |
+  | --- | --- |
+  | `status` | Time, zone, place, coordinates, planetary hour, setup and Bluetooth state, as JSON |
+  | `time <unix seconds>` | Set the clock (e.g. `time $(date +%s)` from a shell) |
+  | `time 2026-11-16T19:40:00Z` | Set from ISO 8601, with `Z` or an offset like `-08:00` |
+  | `time 2026-11-16 11:40` | Set local wall-clock time in the clock's zone |
+  | `tz <IANA zone>` | Set the time zone, e.g. `tz Europe/London` |
+  | `loc <lat> <lon> [name]` | Set the location, north and east positive |
+  | `city <text>` / `city <n>` | Search the city list, then pick a match (sets location and zone) |
+  | `setup open` / `setup close` | Show or hide the setup screen and hotspot |
+  | `ble pair` / `ble forget` | Open Bluetooth pairing, or forget paired phones |
+  | `reboot` | Restart |
+
 Phone GPS isn't used: browsers only allow it on HTTPS pages, and the clock's local page can't be
 HTTPS. The nearest city is close enough: 50 km moves sunrise by about 2 minutes.
 
@@ -107,6 +124,7 @@ cd firmware
 | `src/setup_mode.cpp` | Hotspot, captive portal and web API; shared apply functions. |
 | `src/setup_page.h` | The phone setup page (HTML). |
 | `src/setup_screens.cpp` | On-clock setup: QR home, Time and Place screens. |
+| `src/serial_cmd.cpp` | Serial command interface (see the table above). |
 | `src/ble_time.cpp` | Bluetooth LE time sync from an iPhone (Current Time Service), via NimBLE. |
 | `src/settings.cpp` | Settings saved in flash (location, place, time zone, brightness, rotation). |
 | `src/time_status.cpp` | Whether the time is trustworthy; the known-good time in flash. |

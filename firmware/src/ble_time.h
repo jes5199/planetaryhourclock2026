@@ -18,6 +18,7 @@ void loop();                   // call every loop() iteration (applies results o
 void startPairing(uint32_t seconds = 120);
 bool pairing();                // pairing mode is open
 bool paired();                 // at least one phone is bonded
+void forget();                 // delete all bonds
 // Short status for the setup screen while pairing ("Pair in iPhone Bluetooth") or just after
 // a sync ("Time set by phone", for 10 s); "" otherwise.
 const char* status();
