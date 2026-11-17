@@ -8,3 +8,5 @@ firmware/src/secrets.h
 tools/data/geonames/
 hardware/.venv/
 hardware/out/
+__pycache__/
+*.kicad_prl
