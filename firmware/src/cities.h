@@ -18,6 +18,9 @@ struct Result {
 // strips accents). Cities in `preferTz` come first, then by population. Returns the count.
 size_t search(const char* query, const char* preferTz, Result* out, size_t max);
 
+// The largest cities in an IANA zone, biggest first. Returns the count.
+size_t inZone(const char* tzName, Result* out, size_t max);
+
 // The most populous city in an IANA zone (a good default guess), or false if none.
 bool largestIn(const char* tzName, Result* out);
 

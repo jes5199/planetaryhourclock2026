@@ -52,6 +52,8 @@ int zoneIndex(const char* ianaName) {
   return -1;
 }
 
+int zoneCount() { return kZoneCount; }
+
 const char* zoneName(int index) { return index >= 0 && index < kZoneCount ? kZones[index].name : nullptr; }
 
 const char* posixFor(const char* ianaName) {

@@ -17,4 +17,10 @@ void stop();
 bool active();
 void loop();           // call every loop() iteration
 
+// Shared by the web page and the touchscreen screens. Each saves to flash.
+void applyTime(long unixSeconds, long micros = 0);   // also sets the RTC
+bool applyZone(const char* ianaName);                 // false if the zone is unknown
+void applyLocation(double lat, double lon, const char* place);
+void touched();        // the touchscreen was used: postpone the timeout
+
 }  // namespace setup_mode

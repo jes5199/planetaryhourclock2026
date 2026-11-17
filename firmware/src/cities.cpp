@@ -55,6 +55,15 @@ size_t search(const char* query, const char* preferTz, Result* out, size_t max) 
   return n;
 }
 
+size_t inZone(const char* tzName, Result* out, size_t max) {
+  const int z = tz::zoneIndex(tzName);
+  size_t n = 0;
+  for (size_t i = 0; i < kCount && n < max && z >= 0; ++i) {
+    if (kCities[i].tz == z) out[n++] = toResult(kCities[i]);
+  }
+  return n;
+}
+
 bool largestIn(const char* tzName, Result* out) {
   const int z = tz::zoneIndex(tzName);
   if (z < 0) return false;

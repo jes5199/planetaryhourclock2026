@@ -18,6 +18,7 @@
 #include "setup_page.h"
 #include "time_status.h"
 #include "tz.h"
+#include "setup_screens.h"
 #include "ui.h"
 
 namespace setup_mode {
@@ -105,24 +106,20 @@ void copyUtf8(char* dst, size_t n, const char* src) {
 }
 
 void handleSet() {
-  Settings& c = settings::current();
-  bool changed = false;
-
   if (server.hasArg("tz")) {
     const String name = server.arg("tz");
-    if (const char* posix = tz::posixFor(name.c_str())) {
-      strlcpy(c.tz, posix, sizeof c.tz);
-      strlcpy(c.tzName, name.c_str(), sizeof c.tzName);
-    } else if (server.hasArg("off")) {
+    if (!applyZone(name.c_str())) {
+      if (!server.hasArg("off")) {
+        server.send(400, "text/plain", "unknown time zone");
+        return;
+      }
       // Unknown zone: keep the phone's current offset, without daylight saving.
+      Settings& c = settings::current();
       tz::fixedOffset(server.arg("off").toInt(), c.tz, sizeof c.tz);
       snprintf(c.tzName, sizeof c.tzName, "UTC%+.2g (fixed)", server.arg("off").toInt() / 60.0);
-    } else {
-      server.send(400, "text/plain", "unknown time zone");
-      return;
+      settings::applyTimezone();
+      settings::save();
     }
-    settings::applyTimezone();
-    changed = true;
   }
   if (server.hasArg("lat") && server.hasArg("lon")) {
     const double lat = server.arg("lat").toDouble(), lon = server.arg("lon").toDouble();
@@ -130,22 +127,15 @@ void handleSet() {
       server.send(400, "text/plain", "latitude/longitude out of range");
       return;
     }
-    c.location = {lat, lon};
-    copyUtf8(c.place, sizeof c.place, server.hasArg("place") ? server.arg("place").c_str() : "");
-    changed = true;
+    applyLocation(lat, lon, server.hasArg("place") ? server.arg("place").c_str() : "");
   }
   if (server.hasArg("time")) {
     const double ms = server.arg("time").toDouble();
     if (ms > 1.7e12) {  // after 2023: guards against garbage
-      timeval tv{static_cast<time_t>(ms / 1000), static_cast<suseconds_t>(std::fmod(ms, 1000.0) * 1000)};
-      settimeofday(&tv, nullptr);
-      rtc::write(tv.tv_sec);
-      time_status::setValid(true);
-      time_status::saveLastGood(tv.tv_sec);
+      applyTime(static_cast<long>(ms / 1000), static_cast<long>(std::fmod(ms, 1000.0) * 1000));
     }
   }
-  if (changed) settings::save();
-  Serial.printf("setup: set%s%s%s\n", server.hasArg("time") ? " time" : "",
+  Serial.printf("setup: web set%s%s%s\n", server.hasArg("time") ? " time" : "",
                 server.hasArg("tz") ? " tz" : "", server.hasArg("lat") ? " location" : "");
 
   if (server.hasArg("back")) {
@@ -204,7 +194,7 @@ void start() {
   running = true;
   stopRequested = false;
   lastActivity = millis();
-  ui::showSetup(ssid, password, wifiQr);
+  setup_screens::showHome(ssid, password, wifiQr);
   Serial.printf("setup: hotspot \"%s\" up\n", ssid);
 }
 
@@ -220,6 +210,34 @@ void stop() {
 }
 
 bool active() { return running; }
+
+void touched() { lastActivity = millis(); }
+
+void applyTime(long unixSeconds, long micros) {
+  timeval tv{static_cast<time_t>(unixSeconds), static_cast<suseconds_t>(micros)};
+  settimeofday(&tv, nullptr);
+  rtc::write(tv.tv_sec);
+  time_status::setValid(true);
+  time_status::saveLastGood(tv.tv_sec);
+}
+
+bool applyZone(const char* ianaName) {
+  const char* posix = tz::posixFor(ianaName);
+  if (!posix) return false;
+  Settings& c = settings::current();
+  strlcpy(c.tz, posix, sizeof c.tz);
+  strlcpy(c.tzName, ianaName, sizeof c.tzName);
+  settings::applyTimezone();
+  settings::save();
+  return true;
+}
+
+void applyLocation(double lat, double lon, const char* place) {
+  Settings& c = settings::current();
+  c.location = {lat, lon};
+  copyUtf8(c.place, sizeof c.place, place ? place : "");
+  settings::save();
+}
 
 void loop() {
   if (!running) return;

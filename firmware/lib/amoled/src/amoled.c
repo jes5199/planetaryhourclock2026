@@ -156,6 +156,16 @@ lv_disp_t* amoled_init(int rotation_cw) {
   return lv_disp_drv_register(&disp_drv);
 }
 
+void amoled_panel_to_screen(int px, int py, int* x, int* y) {
+  const int W = AMOLED_WIDTH, H = AMOLED_HEIGHT;
+  switch (s_rotation) {  // inverses of the mappings in flush_cb
+    case 90: *x = py; *y = W - 1 - px; break;
+    case 180: *x = W - 1 - px; *y = H - 1 - py; break;
+    case 270: *x = H - 1 - py; *y = px; break;
+    default: *x = px; *y = py; break;
+  }
+}
+
 void amoled_set_brightness(uint8_t level) {
   if (!s_io) return;
   esp_lcd_panel_io_tx_param(s_io, (0x02 << 24) | (0x51 << 8), &level, 1);

@@ -14,6 +14,7 @@
 #include "rtc.h"
 #include "settings.h"
 #include "setup_mode.h"
+#include "setup_screens.h"
 #include "sun.h"
 #include "time_status.h"
 #include "touch.h"
@@ -89,6 +90,21 @@ void initTime() {
 #endif
 }
 
+// LVGL input from the touch panel, in screen (rotated) coordinates.
+void touchRead(lv_indev_drv_t*, lv_indev_data_t* data) {
+  uint16_t px, py;
+  if (touch::read(&px, &py)) {
+    int x, y;
+    amoled_panel_to_screen(px, py, &x, &y);
+    data->point.x = x;
+    data->point.y = y;
+    data->state = LV_INDEV_STATE_PRESSED;
+    setup_mode::touched();
+  } else {
+    data->state = LV_INDEV_STATE_RELEASED;
+  }
+}
+
 void logState(const planetary::ClockState& s, time_t now) {
   struct tm lt;
   localtime_r(&now, &lt);
@@ -113,6 +129,12 @@ void setup() {
   ui::begin();
 
   touch::begin();
+  static lv_indev_drv_t indev;
+  lv_indev_drv_init(&indev);
+  indev.type = LV_INDEV_TYPE_POINTER;
+  indev.read_cb = touchRead;
+  lv_indev_drv_register(&indev);
+
   setup_mode::begin();
   // A new clock, or one whose RTC lost the time, opens setup by itself.
   if (!settings::saved() || !time_status::valid()) setup_mode::start();
@@ -160,10 +182,11 @@ void loop() {
     }
   }
 
-  // Long-press anywhere toggles setup mode.
+  // Long-press on the clock face opens setup; on the setup home screen it closes it.
+  // (Elsewhere in setup, long presses are left alone so scrolling isn't mistaken for one.)
   if (touch::longPress(1500)) {
-    if (setup_mode::active()) setup_mode::stop();
-    else setup_mode::start();
+    if (setup_mode::active() && setup_screens::onHome()) setup_mode::stop();
+    else if (!setup_mode::active() && ui::onClock()) setup_mode::start();
   }
   setup_mode::loop();
 

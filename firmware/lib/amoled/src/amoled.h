@@ -19,6 +19,9 @@ extern "C" {
 // Call lv_timer_handler() regularly afterwards (from one task only).
 lv_disp_t* amoled_init(int rotation_cw);
 
+// Converts a touch point in panel coordinates to LVGL's (rotated) coordinates.
+void amoled_panel_to_screen(int px, int py, int* x, int* y);
+
 // Panel brightness, 0 (off) to 255.
 void amoled_set_brightness(uint8_t level);
 

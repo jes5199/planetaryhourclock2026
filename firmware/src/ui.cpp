@@ -46,9 +46,6 @@ const lv_color_t kHourHand = lv_color_hex(0xFFFFFF);
 const lv_color_t kTrack = lv_color_hex(0x1A1A1A);
 
 lv_obj_t* clockScreen;
-lv_obj_t* setupScreen;
-lv_obj_t* setupQr;
-lv_obj_t* setupInfo;
 lv_obj_t* arc;
 lv_obj_t* sun;
 lv_obj_t* hourHand;
@@ -237,36 +234,8 @@ void update(const planetary::ClockState& s, time_t now) {
   lv_obj_align(textBox, LV_ALIGN_CENTER, kDrift[step][0], kDrift[step][1]);
 }
 
-void showSetup(const char* ssid, const char* password, const char* wifiQr) {
-  if (!setupScreen) {
-    setupScreen = lv_obj_create(nullptr);
-    lv_obj_set_style_bg_color(setupScreen, lv_color_black(), 0);
-    lv_obj_clear_flag(setupScreen, LV_OBJ_FLAG_SCROLLABLE);
-
-    lv_obj_t* title = lv_label_create(setupScreen);
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_28, 0);
-    lv_obj_set_style_text_color(title, lv_color_white(), 0);
-    lv_label_set_text(title, "Scan to set up");
-    lv_obj_align(title, LV_ALIGN_CENTER, 0, -150);
-
-    // Dark modules on a white field with a quiet zone, as phone cameras expect.
-    setupQr = lv_qrcode_create(setupScreen, 220, lv_color_black(), lv_color_white());
-    lv_obj_set_style_border_color(setupQr, lv_color_white(), 0);
-    lv_obj_set_style_border_width(setupQr, 12, 0);
-    lv_obj_align(setupQr, LV_ALIGN_CENTER, 0, -10);
-
-    setupInfo = lv_label_create(setupScreen);
-    lv_obj_set_style_text_font(setupInfo, &lv_font_montserrat_28, 0);
-    lv_obj_set_style_text_color(setupInfo, lv_color_hex(0xB0B0B0), 0);
-    lv_obj_set_style_text_align(setupInfo, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align(setupInfo, LV_ALIGN_CENTER, 0, 150);
-  }
-  lv_qrcode_update(setupQr, wifiQr, strlen(wifiQr));
-  lv_label_set_text_fmt(setupInfo, "%s\n%s", ssid, password);
-  lv_obj_align(setupInfo, LV_ALIGN_CENTER, 0, 150);
-  lv_scr_load(setupScreen);
-}
-
 void showClock() { lv_scr_load(clockScreen); }
+
+bool onClock() { return lv_scr_act() == clockScreen; }
 
 }  // namespace ui
