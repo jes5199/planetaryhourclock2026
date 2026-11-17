@@ -28,6 +28,11 @@ Planet colours come from the "Planet Colors" palette of
 `#FFD700`, Moon `#FFFFFF`, Mercury `#87CEEB`, Venus `#90EE90`, Mars `#FF6347`, Jupiter
 `#9370DB`, Saturn `#A9A9A9` (dirigible's lifted grey for dark backgrounds).
 
+**Demo mode.** Triple-tap the clock face (or send `demo` over serial) to run one week from now
+in 3 minutes: a day in about 26 seconds, so the days, nights, planetary hours and midnight jumps
+can be watched. The bottom line shows `DEMO MON` (the simulated weekday). Triple-tap or
+long-press to stop; it stops by itself after the week. The real time keeps running underneath.
+
 **Serial log.** The full clock state is printed once a minute at 115200 baud.
 
 ## Setting up a clock
@@ -80,6 +85,7 @@ The Wi-Fi radio is off whenever setup is closed.
   | `loc <lat> <lon> [name]` | Set the location, north and east positive |
   | `city <text>` / `city <n>` | Search the city list, then pick a match (sets location and zone) |
   | `setup open` / `setup close` | Show or hide the setup screen and hotspot |
+  | `demo` | Start or stop demo mode (one week in 3 minutes) |
   | `ble pair` / `ble forget` | Open Bluetooth pairing, or forget paired phones |
   | `reboot` | Restart |
 
@@ -125,6 +131,7 @@ cd firmware
 | `src/setup_mode.cpp` | Hotspot, captive portal and web API; shared apply functions. |
 | `src/setup_page.h` | The phone setup page (HTML). |
 | `src/setup_screens.cpp` | On-clock setup: QR home, Time and Place screens. |
+| `src/demo.cpp` | Demo mode: the simulated week. |
 | `src/serial_cmd.cpp` | Serial command interface (see the table above). |
 | `src/ble_time.cpp` | Bluetooth LE time sync from an iPhone (Current Time Service), via NimBLE. |
 | `src/settings.cpp` | Settings saved in flash (location, place, time zone, brightness, rotation). |

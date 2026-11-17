@@ -11,6 +11,7 @@
 
 #include "amoled.h"
 #include "ble_time.h"
+#include "demo.h"
 #include "planetary.h"
 #include "rtc.h"
 #include "settings.h"
@@ -187,22 +188,36 @@ void loop() {
     Serial.println("time: NTP synced, RTC updated");
   }
 
+  touch::update();
+
+  // Triple-tap the clock face: start or stop a demo week.
+  if (touch::tripleTap() && !setup_mode::active() && ui::onClock() && time_status::valid()) {
+    if (demo::active()) demo::stop();
+    else demo::start();
+  }
+
   const time_t now = time(nullptr);
-  if (now != lastShown) {
+  static uint32_t lastDemoDraw = 0;
+  const bool demoOn = demo::active();
+  const bool redraw = now != lastShown || (demoOn && millis() - lastDemoDraw >= 40);
+  if (redraw) {
     lastShown = now;
+    lastDemoDraw = millis();
     // Every 10 minutes, remember a known-good time (see time_status::lastGood).
     static time_t lastSaved = 0;
     if (time_status::valid() && now - lastSaved >= 600) {
       time_status::saveLastGood(now);
       lastSaved = now;
     }
-    planetary::ClockState s = planetary::computeClock(now, utcOffset(now), settings::current().location);
+    // What the dial shows: the real time, or the demo's simulated time.
+    const time_t shown = demoOn ? demo::now() : now;
+    planetary::ClockState s = planetary::computeClock(shown, utcOffset(shown), settings::current().location);
 #ifdef PREVIEW_RULER
     // Design preview: show a fixed ruling planet (Chaldean index, Saturn = 0 ... Moon = 6).
     s.ruler = static_cast<planetary::Planet>(PREVIEW_RULER);
 #endif
     setup_screens::tick();
-    if (time_status::valid()) ui::update(s, now);
+    if (time_status::valid()) ui::update(s, shown, now, demoOn ? demo::banner() : nullptr);
     else ui::showTimeNotSet();
 
     const Settings& cfg = settings::current();
@@ -211,7 +226,7 @@ void loop() {
       amoled_set_brightness(static_cast<uint8_t>(brightness));
       lastBrightness = brightness;
     }
-    if (now / 60 != lastLoggedMinute) {
+    if (now / 60 != lastLoggedMinute && !demoOn) {
       lastLoggedMinute = now / 60;
       logState(s, now);
     }
@@ -220,7 +235,8 @@ void loop() {
   // Long-press on the clock face opens setup; on the setup home screen it closes it.
   // (Elsewhere in setup, long presses are left alone so scrolling isn't mistaken for one.)
   if (touch::longPress(1500)) {
-    if (setup_mode::active() && setup_screens::onHome()) setup_mode::stop();
+    if (demo::active()) demo::stop();
+    else if (setup_mode::active() && setup_screens::onHome()) setup_mode::stop();
     else if (!setup_mode::active() && ui::onClock()) setup_mode::start();
   }
   setup_mode::loop();

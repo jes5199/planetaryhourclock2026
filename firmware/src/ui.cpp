@@ -190,7 +190,7 @@ void showTimeNotSet() {
   lv_obj_align(textBox, LV_ALIGN_CENTER, 0, 0);
 }
 
-void update(const planetary::ClockState& s, time_t now) {
+void update(const planetary::ClockState& s, time_t now, time_t realNow, const char* banner) {
   const Palette& pal = s.isDay ? kDay : kNight;
   char buf[48], a[8], b[8];
   setGraphicsHidden(false);
@@ -215,7 +215,7 @@ void update(const planetary::ClockState& s, time_t now) {
   // Time left in this hour, counting down (minutes can pass 59 in a long hour).
   const long left = s.hourEnd > now ? static_cast<long>(s.hourEnd - now) : 0;
   snprintf(buf, sizeof buf, "%ld:%02ld", left / 60, left % 60);
-  lv_label_set_text(countdownLabel, buf);
+  lv_label_set_text(countdownLabel, banner ? banner : buf);
 
   lv_obj_set_style_arc_color(arc, pal.arc, LV_PART_MAIN);
   lv_arc_set_bg_angles(arc, toLv(s.arcStartDeg), toLv(s.arcStartDeg + s.arcSpanDeg));
@@ -230,7 +230,7 @@ void update(const planetary::ClockState& s, time_t now) {
 
   // Burn-in protection: drift the text through a small square, one step per minute.
   static const int8_t kDrift[8][2] = {{0, 0}, {3, 0}, {3, 3}, {0, 3}, {-3, 3}, {-3, 0}, {-3, -3}, {0, -3}};
-  const int step = static_cast<int>((now / 60) % 8);
+  const int step = static_cast<int>((realNow / 60) % 8);
   lv_obj_align(textBox, LV_ALIGN_CENTER, kDrift[step][0], kDrift[step][1]);
 }
 

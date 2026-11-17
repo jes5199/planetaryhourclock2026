@@ -57,7 +57,7 @@ EOF
 ```
 
 Useful commands: `time <unix seconds>`, `tz <IANA zone>`, `city <text>` then `city <n>`,
-`loc <lat> <lon> [name]`, `setup open|close`, `ble pair|forget`, `reboot`.
+`loc <lat> <lon> [name]`, `setup open|close`, `ble pair|forget`, `demo` (a week in 3 minutes), `reboot`.
 
 Only one program can hold the port: close any monitor before flashing (`pkill -f cu.usbmodem`).
 Opening the port with DTR/RTS toggled resets the board; the plain open above does not.

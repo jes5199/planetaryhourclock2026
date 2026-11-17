@@ -10,6 +10,7 @@
 
 #include "ble_time.h"
 #include "cities.h"
+#include "demo.h"
 #include "planetary.h"
 #include "settings.h"
 #include "setup_mode.h"
@@ -38,6 +39,7 @@ Replies start with "ok:" or "error:". Times are stored in UTC; the time zone dec
   city <n>                      use match n from the last list: sets location, place name and time zone
 
   setup open | setup close      show or hide the setup screen (Wi-Fi hotspot + QR code)
+  demo                          start or stop a demo: one week in 3 minutes (also: triple-tap the clock)
   ble pair                      open Bluetooth pairing for 2 minutes (iPhone: Settings > Bluetooth)
   ble forget                    forget all paired phones
   reboot                        restart the clock
@@ -229,6 +231,9 @@ void handle(char* cmd) {
     if (!strcmp(arg, "pair")) { ble_time::startPairing(); reply(true, "pairing open for 2 minutes"); }
     else if (!strcmp(arg, "forget")) { ble_time::forget(); reply(true, "forgot all paired phones"); }
     else reply(false, "ble: pair or forget");
+  } else if (!strcmp(cmd, "demo")) {
+    if (demo::active()) { demo::stop(); reply(true, "demo stopped"); }
+    else { demo::start(); reply(true, "demo started: one week in %u s", demo::kWeekRealSeconds); }
   } else if (!strcmp(cmd, "reboot")) {
     reply(true, "rebooting");
     Serial.flush();
