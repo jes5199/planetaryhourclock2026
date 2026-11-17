@@ -21,6 +21,20 @@ size_t search(const char* query, const char* preferTz, Result* out, size_t max);
 // The largest cities in an IANA zone, biggest first. Returns the count.
 size_t inZone(const char* tzName, Result* out, size_t max);
 
+// A first-level division (state, province, region) within a time zone.
+struct Area {
+  int region;            // opaque ids, for inArea()
+  int country;
+  const char* name;      // e.g. "Oregon" (falls back to the country name)
+  const char* country_name;
+};
+
+// The areas that have cities in a zone, A-Z. Returns the count.
+size_t areasInZone(const char* tzName, Area* out, size_t max);
+
+// The largest cities in one area of a zone, biggest first. Returns the count.
+size_t inArea(const char* tzName, const Area& area, Result* out, size_t max);
+
 // The most populous city in an IANA zone (a good default guess), or false if none.
 bool largestIn(const char* tzName, Result* out);
 

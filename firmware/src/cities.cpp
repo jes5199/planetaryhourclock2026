@@ -1,6 +1,7 @@
 #include "cities.h"
 
 #include <cstdint>
+#include <algorithm>
 #include <cstring>
 
 #include "tz.h"
@@ -60,6 +61,35 @@ size_t inZone(const char* tzName, Result* out, size_t max) {
   size_t n = 0;
   for (size_t i = 0; i < kCount && n < max && z >= 0; ++i) {
     if (kCities[i].tz == z) out[n++] = toResult(kCities[i]);
+  }
+  return n;
+}
+
+size_t areasInZone(const char* tzName, Area* out, size_t max) {
+  const int z = tz::zoneIndex(tzName);
+  size_t n = 0;
+  for (size_t i = 0; i < kCount && z >= 0; ++i) {
+    const City& c = kCities[i];
+    if (c.tz != z) continue;
+    bool seen = false;
+    for (size_t j = 0; j < n && !seen; ++j) seen = out[j].region == c.region && out[j].country == c.country;
+    if (seen || n == max) continue;
+    const char* region = kRegions[c.region];
+    out[n++] = {c.region, c.country, *region ? region : kCountries[c.country][1], kCountries[c.country][1]};
+  }
+  std::sort(out, out + n, [](const Area& a, const Area& b) {
+    const int c = strcmp(a.name, b.name);
+    return c != 0 ? c < 0 : strcmp(a.country_name, b.country_name) < 0;
+  });
+  return n;
+}
+
+size_t inArea(const char* tzName, const Area& area, Result* out, size_t max) {
+  const int z = tz::zoneIndex(tzName);
+  size_t n = 0;
+  for (size_t i = 0; i < kCount && n < max && z >= 0; ++i) {
+    const City& c = kCities[i];
+    if (c.tz == z && c.region == area.region && c.country == area.country) out[n++] = toResult(c);
   }
   return n;
 }

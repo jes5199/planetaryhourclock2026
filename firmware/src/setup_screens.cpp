@@ -39,12 +39,17 @@ lv_obj_t* pickRoller;
 lv_obj_t* coordScreen;
 lv_obj_t* coordRollers[6];  // N/S, lat degrees, lat tenths, E/W, lon degrees, lon tenths
 
-// Place picker state: step 0 region, 1 zone, 2 city; then the coordinates screen.
+// Place picker state: step 0 region, 1 zone, 2 state/province (skipped if the zone has only
+// one), 3 city; then the coordinates screen.
 int pickStep = 0;
 std::vector<std::string> regions;
 std::vector<int> zonesInRegion;  // zone indexes for the chosen region
 int chosenRegion = -1;
 std::string chosenZone;
+constexpr int kMaxAreas = 80;
+cities::Area areaList[kMaxAreas];
+size_t areaCount = 0;
+int chosenArea = -1;
 cities::Result cityList[kMaxCities];
 size_t cityCount = 0;
 std::string chosenPlace;
@@ -259,6 +264,7 @@ void pickBack(lv_event_t*) {
     lv_scr_load(homeScreen);
   } else {
     --pickStep;
+    if (pickStep == 2 && areaCount <= 1) --pickStep;  // the area step was skipped
     showPickStep();
   }
 }
@@ -270,8 +276,16 @@ void pickNext(lv_event_t*) {
     pickStep = 1;
     showPickStep();
   } else if (pickStep == 1) {
-    chosenZone = tz::zoneName(zonesInRegion[sel]);
-    pickStep = 2;
+    const std::string zone = tz::zoneName(zonesInRegion[sel]);
+    if (zone != chosenZone) chosenArea = -1;
+    chosenZone = zone;
+    areaCount = cities::areasInZone(chosenZone.c_str(), areaList, kMaxAreas);
+    pickStep = areaCount > 1 ? 2 : 3;
+    if (areaCount == 1) chosenArea = 0;
+    showPickStep();
+  } else if (pickStep == 2) {
+    chosenArea = sel;
+    pickStep = 3;
     showPickStep();
   } else if (sel < cityCount) {
     const cities::Result& c = cityList[sel];
@@ -324,10 +338,32 @@ void showPickStep() {
       if (chosenZone.empty() ? strcmp(name, currentZone) == 0 : chosenZone == name) select = zonesInRegion.size();
       zonesInRegion.push_back(i);
     }
+  } else if (pickStep == 2) {
+    lv_label_set_text(pickTitle, "State / province");
+    // Name the country too when a zone spans several.
+    bool severalCountries = false;
+    for (size_t i = 1; i < areaCount; ++i) severalCountries |= areaList[i].country != areaList[0].country;
+    const char* place = settings::current().place;
+    for (size_t i = 0; i < areaCount; ++i) {
+      if (i) options += '\n';
+      options += areaList[i].name;
+      if (severalCountries && strcmp(areaList[i].name, areaList[i].country_name) != 0) {
+        options += " (";
+        options += areaList[i].country_name;
+        options += ")";
+      }
+      const char* comma = strstr(place, ", ");
+      if (comma && strcmp(comma + 2, areaList[i].name) == 0) select = i;
+    }
+    if (chosenArea >= 0) select = chosenArea;
   } else {
     lv_label_set_text(pickTitle, "Nearest city");
-    // The zone's largest cities, listed A-Z so they're easy to scan.
-    cityCount = cities::inZone(chosenZone.c_str(), cityList, kMaxCities);
+    // The area's largest cities (or the zone's, if it has no areas), listed A-Z.
+    if (chosenArea >= 0 && chosenArea < static_cast<int>(areaCount)) {
+      cityCount = cities::inArea(chosenZone.c_str(), areaList[chosenArea], cityList, kMaxCities);
+    } else {
+      cityCount = cities::inZone(chosenZone.c_str(), cityList, kMaxCities);
+    }
     std::sort(cityList, cityList + cityCount,
               [](const cities::Result& a, const cities::Result& b) { return strcmp(a.name, b.name) < 0; });
     const char* place = settings::current().place;
@@ -348,6 +384,8 @@ void openPlace(lv_event_t*) {
   pickStep = 0;
   chosenRegion = -1;
   chosenZone.clear();
+  chosenArea = -1;
+  areaCount = 0;
   showPickStep();
   lv_scr_load(pickScreen);
 }

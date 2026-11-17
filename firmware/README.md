@@ -42,8 +42,9 @@ The setup screen shows a Wi-Fi QR code and two buttons. Either route works on it
   itself; if not, browse to `http://192.168.4.1`. One button sets the time and time zone from
   the phone. Search for the nearest city, or type coordinates.
 - **On the clock.** **Time** (top button) sets the hour, minute and date with scroll wheels.
-  **Place** (bottom button) picks a region, then a time zone, then the nearest city (the
-  zone's 60 largest, A–Z), then shows that city's coordinates to the nearest 0.1° so they can
+  **Place** (bottom button) picks a region, then a time zone, then a state or province
+  (skipped when the zone has only one), then the nearest city (that area's 60 largest, A–Z),
+  then shows that city's coordinates to the nearest 0.1° so they can
   be adjusted before saving. Buttons are large pills at the top and bottom of the circle: the
   screen is only ~36 mm across.
 
