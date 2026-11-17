@@ -92,17 +92,21 @@ void initTime() {
 
 // LVGL input from the touch panel, in screen (rotated) coordinates.
 void touchRead(lv_indev_drv_t*, lv_indev_data_t* data) {
+  static bool wasDown = false;
   uint16_t px, py;
-  if (touch::read(&px, &py)) {
+  const bool down = touch::read(&px, &py);
+  if (down) {
     int x, y;
     amoled_panel_to_screen(px, py, &x, &y);
     data->point.x = x;
     data->point.y = y;
+    if (!wasDown) Serial.printf("touch: down at %d,%d\n", x, y);
     data->state = LV_INDEV_STATE_PRESSED;
     setup_mode::touched();
   } else {
     data->state = LV_INDEV_STATE_RELEASED;
   }
+  wasDown = down;
 }
 
 void logState(const planetary::ClockState& s, time_t now) {

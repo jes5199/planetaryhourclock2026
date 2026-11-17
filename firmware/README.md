@@ -41,8 +41,11 @@ The setup screen shows a Wi-Fi QR code and two buttons. Either route works on it
   (WPA2, password unique to each clock and saved in flash) and the setup page opens by
   itself; if not, browse to `http://192.168.4.1`. One button sets the time and time zone from
   the phone. Search for the nearest city, or type coordinates.
-- **On the clock.** **Time** sets the hour, minute and date with scroll wheels. **Place**
-  picks a region, then a time zone, then the nearest city.
+- **On the clock.** **Time** (top button) sets the hour, minute and date with scroll wheels.
+  **Place** (bottom button) picks a region, then a time zone, then the nearest city (the
+  zone's 60 largest, A–Z), then shows that city's coordinates to the nearest 0.1° so they can
+  be adjusted before saving. Buttons are large pills at the top and bottom of the circle: the
+  screen is only ~36 mm across.
 
 Long-press the setup screen, tap Done on the phone, or wait 10 minutes to go back to the clock.
 The Wi-Fi radio is off whenever setup is closed.
