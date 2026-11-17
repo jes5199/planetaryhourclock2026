@@ -167,7 +167,9 @@ void buildTime() {
   lv_roller_set_options(timeRollers[0], numberList(0, 23, "%02d").c_str(), LV_ROLLER_MODE_INFINITE);
   makeLabel(timeScreen, ":", lv_color_white(), 0, -52);
   timeRollers[1] = makeRoller(timeScreen, 96, 58, -52, 3);
-  lv_roller_set_options(timeRollers[1], numberList(0, 59, "%02d").c_str(), LV_ROLLER_MODE_INFINITE);
+  // Not INFINITE: LVGL repeats an infinite roller's options 7 times, and 60 x 7 rows is taller
+  // than LVGL 8's coordinate limit (8191 px), which garbles the selection.
+  lv_roller_set_options(timeRollers[1], numberList(0, 59, "%02d").c_str(), LV_ROLLER_MODE_NORMAL);
 
   timeRollers[2] = makeRoller(timeScreen, 76, -112, 60, 3);
   lv_roller_set_options(timeRollers[2], numberList(1, 31, "%d").c_str(), LV_ROLLER_MODE_INFINITE);
