@@ -21,19 +21,28 @@ size_t search(const char* query, const char* preferTz, Result* out, size_t max);
 // The largest cities in an IANA zone, biggest first. Returns the count.
 size_t inZone(const char* tzName, Result* out, size_t max);
 
-// A first-level division (state, province, region) within a time zone.
+// Browsing by place, for the touchscreen: continent -> country -> area -> city.
+struct Country {
+  int id;
+  const char* name;
+};
 struct Area {
-  int region;            // opaque ids, for inArea()
-  int country;
-  const char* name;      // e.g. "Oregon" (falls back to the country name)
-  const char* country_name;
+  int country;           // opaque ids, for inArea()
+  int region;
+  const char* name;      // e.g. "Oregon" (the country name if the city has no division)
 };
 
-// The areas that have cities in a zone, A-Z. Returns the count.
-size_t areasInZone(const char* tzName, Area* out, size_t max);
-
-// The largest cities in one area of a zone, biggest first. Returns the count.
-size_t inArea(const char* tzName, const Area& area, Result* out, size_t max);
+// Continents with cities, in display order: codes ("NA") and names ("North America").
+size_t continents(const char** codes, const char** names, size_t max);
+// Countries with cities in a continent, A-Z.
+size_t countriesIn(const char* continentCode, Country* out, size_t max);
+// States/provinces/regions with cities in a country, A-Z.
+size_t areasIn(int country, Area* out, size_t max);
+// The largest cities in an area, biggest first.
+size_t inArea(const Area& area, Result* out, size_t max);
+// Where the largest city of a time zone is: its continent code, country and area (for
+// preselecting the pickers). False if the zone has no cities.
+bool locateZone(const char* tzName, const char** continent, int* country, int* region);
 
 // The most populous city in an IANA zone (a good default guess), or false if none.
 bool largestIn(const char* tzName, Result* out);

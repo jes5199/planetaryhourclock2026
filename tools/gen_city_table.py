@@ -54,7 +54,7 @@ def main():
         if line.startswith("#") or not line.strip():
             continue
         f = line.split("\t")
-        countries[f[0]] = f[4]
+        countries[f[0]] = (f[4], f[8])  # name, continent code (AF AN AS EU NA OC SA)
 
     zones = sorted(row[0] for row in csv.reader(open(ROOT / "tools/data/posix_tz_db/zones.csv", newline="")))
     zone_index = {z: i for i, z in enumerate(zones)}
@@ -81,9 +81,10 @@ def main():
         out.write("static const char* const kRegions[] = {\n")
         for n in region_names:
             out.write(f"  {c_str(n)},\n")
-        out.write("};\n\nstatic const char* const kCountries[][2] = {\n")
+        out.write("};\n\n// ISO code, name, continent code.\nstatic const char* const kCountries[][3] = {\n")
         for c in country_codes:
-            out.write(f"  {{{c_str(c)}, {c_str(countries.get(c, c))}}},\n")
+            name, continent = countries.get(c, (c, ""))
+            out.write(f"  {{{c_str(c)}, {c_str(name)}, {c_str(continent)}}},\n")
         out.write("};\n\nstatic const City kCities[] = {\n")
         for pop, name, ascii_name, region, cc, lat, lon, tzi in rows:
             search = ascii_name.lower()

@@ -65,33 +65,66 @@ size_t inZone(const char* tzName, Result* out, size_t max) {
   return n;
 }
 
-size_t areasInZone(const char* tzName, Area* out, size_t max) {
-  const int z = tz::zoneIndex(tzName);
+size_t continents(const char** codes, const char** names, size_t max) {
+  static const char* const kOrder[][2] = {{"AF", "Africa"},        {"AS", "Asia"},
+                                          {"EU", "Europe"},        {"NA", "North America"},
+                                          {"OC", "Oceania"},       {"SA", "South America"},
+                                          {"AN", "Antarctica"}};
   size_t n = 0;
-  for (size_t i = 0; i < kCount && z >= 0; ++i) {
-    const City& c = kCities[i];
-    if (c.tz != z) continue;
-    bool seen = false;
-    for (size_t j = 0; j < n && !seen; ++j) seen = out[j].region == c.region && out[j].country == c.country;
-    if (seen || n == max) continue;
-    const char* region = kRegions[c.region];
-    out[n++] = {c.region, c.country, *region ? region : kCountries[c.country][1], kCountries[c.country][1]};
+  for (const auto& c : kOrder) {
+    if (n == max) break;
+    codes[n] = c[0];
+    names[n] = c[1];
+    ++n;
   }
-  std::sort(out, out + n, [](const Area& a, const Area& b) {
-    const int c = strcmp(a.name, b.name);
-    return c != 0 ? c < 0 : strcmp(a.country_name, b.country_name) < 0;
-  });
   return n;
 }
 
-size_t inArea(const char* tzName, const Area& area, Result* out, size_t max) {
-  const int z = tz::zoneIndex(tzName);
+size_t countriesIn(const char* continentCode, Country* out, size_t max) {
+  constexpr size_t kCountryCount = sizeof kCountries / sizeof kCountries[0];
   size_t n = 0;
-  for (size_t i = 0; i < kCount && n < max && z >= 0; ++i) {
+  for (size_t i = 0; i < kCountryCount && n < max; ++i) {
+    if (strcmp(kCountries[i][2], continentCode) == 0) out[n++] = {static_cast<int>(i), kCountries[i][1]};
+  }
+  std::sort(out, out + n, [](const Country& a, const Country& b) { return strcmp(a.name, b.name) < 0; });
+  return n;
+}
+
+size_t areasIn(int country, Area* out, size_t max) {
+  size_t n = 0;
+  for (size_t i = 0; i < kCount; ++i) {
     const City& c = kCities[i];
-    if (c.tz == z && c.region == area.region && c.country == area.country) out[n++] = toResult(c);
+    if (c.country != country) continue;
+    bool seen = false;
+    for (size_t j = 0; j < n && !seen; ++j) seen = out[j].region == c.region;
+    if (seen || n == max) continue;
+    const char* region = kRegions[c.region];
+    out[n++] = {c.country, c.region, *region ? region : kCountries[c.country][1]};
+  }
+  std::sort(out, out + n, [](const Area& a, const Area& b) { return strcmp(a.name, b.name) < 0; });
+  return n;
+}
+
+size_t inArea(const Area& area, Result* out, size_t max) {
+  size_t n = 0;
+  for (size_t i = 0; i < kCount && n < max; ++i) {
+    const City& c = kCities[i];
+    if (c.country == area.country && c.region == area.region) out[n++] = toResult(c);
   }
   return n;
+}
+
+bool locateZone(const char* tzName, const char** continent, int* country, int* region) {
+  const int z = tz::zoneIndex(tzName);
+  for (size_t i = 0; i < kCount && z >= 0; ++i) {
+    if (kCities[i].tz == z) {
+      *continent = kCountries[kCities[i].country][2];
+      *country = kCities[i].country;
+      *region = kCities[i].region;
+      return true;
+    }
+  }
+  return false;
 }
 
 bool largestIn(const char* tzName, Result* out) {

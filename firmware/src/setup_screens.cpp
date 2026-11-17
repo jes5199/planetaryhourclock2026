@@ -39,20 +39,22 @@ lv_obj_t* pickRoller;
 lv_obj_t* coordScreen;
 lv_obj_t* coordRollers[6];  // N/S, lat degrees, lat tenths, E/W, lon degrees, lon tenths
 
-// Place picker state: step 0 region, 1 zone, 2 state/province (skipped if the zone has only
-// one), 3 city; then the coordinates screen.
+// Place picker: step 0 continent, 1 country, 2 state/province (skipped when a country has
+// only one), 3 city; then the coordinates screen. The time zone comes from the chosen city.
 int pickStep = 0;
-std::vector<std::string> regions;
-std::vector<int> zonesInRegion;  // zone indexes for the chosen region
-int chosenRegion = -1;
-std::string chosenZone;
-constexpr int kMaxAreas = 80;
+constexpr int kMaxCountries = 80, kMaxAreas = 100;
+const char* continentCodes[8];
+const char* continentNames[8];
+size_t continentCount = 0;
+cities::Country countryList[kMaxCountries];
+size_t countryCount = 0;
 cities::Area areaList[kMaxAreas];
 size_t areaCount = 0;
-int chosenArea = -1;
 cities::Result cityList[kMaxCities];
 size_t cityCount = 0;
+int chosen[4] = {-1, -1, -1, -1};  // selected index at each step
 std::string chosenPlace;
+std::string chosenZone;
 
 lv_obj_t* makeScreen() {
   lv_obj_t* s = lv_obj_create(nullptr);
@@ -111,19 +113,6 @@ std::string numberList(int from, int to, const char* fmt) {
     s += buf;
   }
   return s;
-}
-
-std::string prettyZone(const char* name) {
-  // "America/Argentina/Buenos_Aires" -> "Argentina/Buenos Aires" (region dropped).
-  const char* slash = strchr(name, '/');
-  std::string s = slash ? slash + 1 : name;
-  for (char& c : s) if (c == '_') c = ' ';
-  return s;
-}
-
-std::string regionOf(const char* name) {
-  const char* slash = strchr(name, '/');
-  return slash ? std::string(name, slash - name) : std::string(name);
 }
 
 // ---- Home ---------------------------------------------------------------------
@@ -257,47 +246,45 @@ void openCoords(double lat, double lon) {
   lv_scr_load(coordScreen);
 }
 
-// ---- Place: region -> zone -> city (A-Z) -> coordinates --------------------------
+// ---- Place: continent -> country -> state/province -> city -> coordinates ----------
 
 void showPickStep();
 
 void pickBack(lv_event_t*) {
   if (pickStep == 0) {
     lv_scr_load(homeScreen);
-  } else {
-    --pickStep;
-    if (pickStep == 2 && areaCount <= 1) --pickStep;  // the area step was skipped
-    showPickStep();
+    return;
   }
+  --pickStep;
+  if (pickStep == 2 && areaCount <= 1) --pickStep;  // the area step was skipped
+  showPickStep();
 }
 
 void pickNext(lv_event_t*) {
-  const uint16_t sel = lv_roller_get_selected(pickRoller);
+  const int sel = lv_roller_get_selected(pickRoller);
+  if (sel != chosen[pickStep]) {
+    for (int i = pickStep + 1; i < 4; ++i) chosen[i] = -1;  // a new choice resets later steps
+  }
+  chosen[pickStep] = sel;
+
   if (pickStep == 0) {
-    chosenRegion = sel;
+    countryCount = cities::countriesIn(continentCodes[sel], countryList, kMaxCountries);
     pickStep = 1;
-    showPickStep();
   } else if (pickStep == 1) {
-    const std::string zone = tz::zoneName(zonesInRegion[sel]);
-    if (zone != chosenZone) chosenArea = -1;
-    chosenZone = zone;
-    areaCount = cities::areasInZone(chosenZone.c_str(), areaList, kMaxAreas);
+    areaCount = cities::areasIn(countryList[sel].id, areaList, kMaxAreas);
     pickStep = areaCount > 1 ? 2 : 3;
-    if (areaCount == 1) chosenArea = 0;
-    showPickStep();
+    if (areaCount == 1) chosen[2] = 0;
   } else if (pickStep == 2) {
-    chosenArea = sel;
     pickStep = 3;
-    showPickStep();
-  } else if (sel < cityCount) {
+  } else {
+    if (sel >= static_cast<int>(cityCount)) return;
     const cities::Result& c = cityList[sel];
     chosenPlace = std::string(c.name) + ", " + (*c.region ? c.region : c.country);
+    chosenZone = c.tzName ? c.tzName : settings::current().tzName;
     openCoords(c.lat, c.lon);
-  } else {
-    // No cities listed for this zone: keep the place name, adjust the coordinates.
-    chosenPlace = settings::current().place;
-    openCoords(settings::current().location.latDeg, settings::current().location.lonDeg);
+    return;
   }
+  showPickStep();
 }
 
 void buildPick() {
@@ -306,77 +293,66 @@ void buildPick() {
   pickTitle = makeLabel(pickScreen, "", lv_color_white(), 0, -96);
   pickRoller = makeRoller(pickScreen, 380, 0, 14, 3);
   makeButton(pickScreen, "Next", kBottomY, pickNext, true);
+  continentCount = cities::continents(continentCodes, continentNames, 8);
+}
 
-  // Regions are the first part of the zone names: Africa, America, Asia, Europe, ...
-  for (int i = 0; i < tz::zoneCount(); ++i) {
-    const std::string r = regionOf(tz::zoneName(i));
-    if (regions.empty() || regions.back() != r) regions.push_back(r);  // table is sorted
+// Preselect where the clock is now: the area named in its place ("Portland, Oregon"), else
+// where its time zone's largest city is.
+void preselect(int step, int* select) {
+  if (chosen[step] >= 0) {
+    *select = chosen[step];
+    return;
+  }
+  const char* continent;
+  int country, region;
+  if (!cities::locateZone(settings::current().tzName, &continent, &country, &region)) return;
+  const char* place = settings::current().place;
+  const char* comma = strstr(place, ", ");
+  if (step == 0) {
+    for (size_t i = 0; i < continentCount; ++i)
+      if (strcmp(continentCodes[i], continent) == 0) *select = i;
+  } else if (step == 1) {
+    for (size_t i = 0; i < countryCount; ++i)
+      if (countryList[i].id == country) *select = i;
+  } else if (step == 2) {
+    for (size_t i = 0; i < areaCount; ++i) {
+      if (comma ? strcmp(comma + 2, areaList[i].name) == 0 : areaList[i].region == region) *select = i;
+    }
+  } else {
+    for (size_t i = 0; i < cityCount; ++i) {
+      const size_t n = strlen(cityList[i].name);
+      if (strncmp(place, cityList[i].name, n) == 0 && place[n] == ',') *select = i;
+    }
   }
 }
 
 void showPickStep() {
-  const char* currentZone = settings::current().tzName;
   std::string options;
   int select = 0;
+  auto add = [&options](const char* text) {
+    if (!options.empty()) options += '\n';
+    options += text;
+  };
 
   if (pickStep == 0) {
-    lv_label_set_text(pickTitle, "Region");
-    const std::string mine = regionOf(currentZone);
-    for (size_t i = 0; i < regions.size(); ++i) {
-      if (i) options += '\n';
-      options += regions[i];
-      if (regions[i] == mine) select = i;
-    }
-    if (chosenRegion >= 0) select = chosenRegion;
+    lv_label_set_text(pickTitle, "Continent");
+    for (size_t i = 0; i < continentCount; ++i) add(continentNames[i]);
   } else if (pickStep == 1) {
-    lv_label_set_text(pickTitle, "Time zone");
-    const std::string& region = regions[chosenRegion];
-    zonesInRegion.clear();
-    for (int i = 0; i < tz::zoneCount(); ++i) {
-      const char* name = tz::zoneName(i);
-      if (regionOf(name) != region) continue;
-      if (!zonesInRegion.empty()) options += '\n';
-      options += prettyZone(name);
-      if (chosenZone.empty() ? strcmp(name, currentZone) == 0 : chosenZone == name) select = zonesInRegion.size();
-      zonesInRegion.push_back(i);
-    }
+    lv_label_set_text(pickTitle, "Country");
+    for (size_t i = 0; i < countryCount; ++i) add(countryList[i].name);
   } else if (pickStep == 2) {
     lv_label_set_text(pickTitle, "State / province");
-    // Name the country too when a zone spans several.
-    bool severalCountries = false;
-    for (size_t i = 1; i < areaCount; ++i) severalCountries |= areaList[i].country != areaList[0].country;
-    const char* place = settings::current().place;
-    for (size_t i = 0; i < areaCount; ++i) {
-      if (i) options += '\n';
-      options += areaList[i].name;
-      if (severalCountries && strcmp(areaList[i].name, areaList[i].country_name) != 0) {
-        options += " (";
-        options += areaList[i].country_name;
-        options += ")";
-      }
-      const char* comma = strstr(place, ", ");
-      if (comma && strcmp(comma + 2, areaList[i].name) == 0) select = i;
-    }
-    if (chosenArea >= 0) select = chosenArea;
+    for (size_t i = 0; i < areaCount; ++i) add(areaList[i].name);
   } else {
     lv_label_set_text(pickTitle, "Nearest city");
-    // The area's largest cities (or the zone's, if it has no areas), listed A-Z.
-    if (chosenArea >= 0 && chosenArea < static_cast<int>(areaCount)) {
-      cityCount = cities::inArea(chosenZone.c_str(), areaList[chosenArea], cityList, kMaxCities);
-    } else {
-      cityCount = cities::inZone(chosenZone.c_str(), cityList, kMaxCities);
-    }
+    // The area's largest cities, listed A-Z so they're easy to scan.
+    cityCount = areaCount ? cities::inArea(areaList[chosen[2] < 0 ? 0 : chosen[2]], cityList, kMaxCities) : 0;
     std::sort(cityList, cityList + cityCount,
               [](const cities::Result& a, const cities::Result& b) { return strcmp(a.name, b.name) < 0; });
-    const char* place = settings::current().place;
-    for (size_t i = 0; i < cityCount; ++i) {
-      if (i) options += '\n';
-      options += cityList[i].name;
-      const size_t n = strlen(cityList[i].name);
-      if (strncmp(place, cityList[i].name, n) == 0 && place[n] == ',') select = i;
-    }
-    if (cityCount == 0) options = "(no cities listed)";
+    for (size_t i = 0; i < cityCount; ++i) add(cityList[i].name);
+    if (cityCount == 0) add("(no cities listed)");
   }
+  preselect(pickStep, &select);
   lv_roller_set_options(pickRoller, options.c_str(), LV_ROLLER_MODE_NORMAL);
   lv_roller_set_selected(pickRoller, select, LV_ANIM_OFF);
 }
@@ -384,10 +360,7 @@ void showPickStep() {
 void openPlace(lv_event_t*) {
   if (!pickScreen) buildPick();
   pickStep = 0;
-  chosenRegion = -1;
-  chosenZone.clear();
-  chosenArea = -1;
-  areaCount = 0;
+  for (int& c : chosen) c = -1;
   showPickStep();
   lv_scr_load(pickScreen);
 }
