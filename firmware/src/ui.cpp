@@ -173,9 +173,30 @@ void begin() {
   countdownLabel = makeLabel(textBox, small, lv_color_hex(0x707070), 140);
 }
 
+static void setGraphicsHidden(bool hidden) {
+  for (lv_obj_t* o : {arc, sun, hourHand, hourDot}) {
+    if (hidden) lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN);
+    else lv_obj_clear_flag(o, LV_OBJ_FLAG_HIDDEN);
+  }
+}
+
+void showTimeNotSet() {
+  setGraphicsHidden(true);
+  lv_label_set_text(timeLabel, "--:--");
+  lv_label_set_text(rulerLabel, "SET TIME");
+  lv_obj_set_style_text_color(rulerLabel, lv_color_white(), 0);
+  lv_label_set_text(spanLabel, "Hold screen");
+  lv_obj_set_style_text_color(spanLabel, lv_color_hex(0x9A9A9A), 0);
+  lv_label_set_text(lengthLabel, "to set up");
+  lv_obj_set_style_text_color(lengthLabel, lv_color_hex(0x9A9A9A), 0);
+  lv_label_set_text(countdownLabel, "");
+  lv_obj_align(textBox, LV_ALIGN_CENTER, 0, 0);
+}
+
 void update(const planetary::ClockState& s, time_t now) {
   const Palette& pal = s.isDay ? kDay : kNight;
   char buf[48], a[8], b[8];
+  setGraphicsHidden(false);
 
   formatHm(now, buf, sizeof buf);
   lv_label_set_text(timeLabel, buf);

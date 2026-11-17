@@ -15,6 +15,7 @@
 #include "settings.h"
 #include "setup_mode.h"
 #include "sun.h"
+#include "time_status.h"
 #include "touch.h"
 #include "ui.h"
 
@@ -63,13 +64,20 @@ void initTime() {
   const time_t built = buildTime();
   time_t t;
   const bool haveRtc = rtc::begin();
-  if (haveRtc && rtc::read(&t) && t >= built) {
+  const long lastGood = time_status::lastGood();
+  const bool rtcOk = haveRtc && rtc::read(&t);
+  Serial.printf("time: rtc present=%d readable=%d rtc=%ld build=%ld lastGood=%ld\n", haveRtc, rtcOk,
+                rtcOk ? static_cast<long>(t) : 0L, static_cast<long>(built), lastGood);
+  if (rtcOk && t >= built && t >= lastGood) {
     setSystemTime(t);
+    time_status::setValid(true);
     Serial.println("time: from RTC");
   } else {
+    // Keep the clock running from the build time, but flag it: the face shows
+    // "SET TIME" and setup mode opens until a phone or NTP sets the real time.
     setSystemTime(built);
-    if (haveRtc) rtc::write(built);
-    Serial.println("time: RTC unset or stale, using build time");
+    time_status::setValid(false);
+    Serial.println("time: RTC lost power or is stale; time not set");
   }
 
 #if defined(WIFI_SSID)
@@ -106,7 +114,8 @@ void setup() {
 
   touch::begin();
   setup_mode::begin();
-  if (!settings::saved()) setup_mode::start();  // a new clock opens setup by itself
+  // A new clock, or one whose RTC lost the time, opens setup by itself.
+  if (!settings::saved() || !time_status::valid()) setup_mode::start();
 }
 
 void loop() {
@@ -117,18 +126,27 @@ void loop() {
   if (ntpSynced) {
     ntpSynced = false;
     rtc::write(time(nullptr));
+    time_status::setValid(true);
+    time_status::saveLastGood(time(nullptr));
     Serial.println("time: NTP synced, RTC updated");
   }
 
   const time_t now = time(nullptr);
   if (now != lastShown) {
     lastShown = now;
+    // Every 10 minutes, remember a known-good time (see time_status::lastGood).
+    static time_t lastSaved = 0;
+    if (time_status::valid() && now - lastSaved >= 600) {
+      time_status::saveLastGood(now);
+      lastSaved = now;
+    }
     planetary::ClockState s = planetary::computeClock(now, utcOffset(now), settings::current().location);
 #ifdef PREVIEW_RULER
     // Design preview: show a fixed ruling planet (Chaldean index, Saturn = 0 ... Moon = 6).
     s.ruler = static_cast<planetary::Planet>(PREVIEW_RULER);
 #endif
-    ui::update(s, now);
+    if (time_status::valid()) ui::update(s, now);
+    else ui::showTimeNotSet();
 
     const Settings& cfg = settings::current();
     const int brightness = s.isDay ? cfg.brightnessDay : cfg.brightnessNight;

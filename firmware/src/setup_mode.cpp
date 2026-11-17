@@ -16,6 +16,7 @@
 #include "rtc.h"
 #include "settings.h"
 #include "setup_page.h"
+#include "time_status.h"
 #include "tz.h"
 #include "ui.h"
 
@@ -139,6 +140,8 @@ void handleSet() {
       timeval tv{static_cast<time_t>(ms / 1000), static_cast<suseconds_t>(std::fmod(ms, 1000.0) * 1000)};
       settimeofday(&tv, nullptr);
       rtc::write(tv.tv_sec);
+      time_status::setValid(true);
+      time_status::saveLastGood(tv.tv_sec);
     }
   }
   if (changed) settings::save();
