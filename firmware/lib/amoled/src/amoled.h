@@ -15,8 +15,9 @@ extern "C" {
 #define AMOLED_HEIGHT 466
 
 // Initializes the panel and registers it as the default LVGL display.
+// `rotation_cw` turns the picture clockwise: 0, 90, 180 or 270 degrees.
 // Call lv_timer_handler() regularly afterwards (from one task only).
-lv_disp_t* amoled_init(void);
+lv_disp_t* amoled_init(int rotation_cw);
 
 // Panel brightness, 0 (off) to 255.
 void amoled_set_brightness(uint8_t level);

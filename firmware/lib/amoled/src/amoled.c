@@ -68,7 +68,7 @@ static void rounder_cb(lv_disp_drv_t* drv, lv_area_t* area) {
   area->y2 = ((area->y2 >> 1) << 1) + 1;
 }
 
-lv_disp_t* amoled_init(void) {
+lv_disp_t* amoled_init(int rotation_cw) {
   static lv_disp_draw_buf_t draw_buf;
   static lv_disp_drv_t disp_drv;
 
@@ -116,6 +116,13 @@ lv_disp_t* amoled_init(void) {
   disp_drv.flush_cb = flush_cb;
   disp_drv.rounder_cb = rounder_cb;
   disp_drv.draw_buf = &draw_buf;
+  // LVGL's ROT_270 turns the content clockwise by 90 degrees, ROT_90 counter-clockwise.
+  switch (((rotation_cw % 360) + 360) % 360) {
+    case 90: disp_drv.sw_rotate = 1; disp_drv.rotated = LV_DISP_ROT_270; break;
+    case 180: disp_drv.sw_rotate = 1; disp_drv.rotated = LV_DISP_ROT_180; break;
+    case 270: disp_drv.sw_rotate = 1; disp_drv.rotated = LV_DISP_ROT_90; break;
+    default: break;
+  }
   return lv_disp_drv_register(&disp_drv);
 }
 

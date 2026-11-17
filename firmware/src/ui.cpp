@@ -12,8 +12,11 @@ namespace {
 
 constexpr int kCx = AMOLED_WIDTH / 2;
 constexpr int kCy = AMOLED_HEIGHT / 2;
-constexpr int kArcRadius = 216;  // centreline of the hour arc
+constexpr int kArcRadius = 214;  // centreline of the hour arc
 constexpr int kArcWidth = 14;
+constexpr int kDayHandIn = 194, kDayHandOut = 230;    // short and thick
+constexpr int kHourHandIn = 172, kHourHandOut = 230;  // long and thin
+constexpr int kDotSize = 12;
 
 const lv_color_t kDayArc = lv_color_hex(0xE8A33A);    // amber
 const lv_color_t kNightArc = lv_color_hex(0x5A4FCF);  // indigo, bright enough on AMOLED
@@ -30,7 +33,8 @@ lv_obj_t* hourDot;
 lv_obj_t* textBox;
 lv_obj_t* timeLabel;
 lv_obj_t* rulerLabel;
-lv_obj_t* hourLabel;
+lv_obj_t* spanLabel;
+lv_obj_t* lengthLabel;
 lv_point_t dayHandPts[2];
 lv_point_t hourHandPts[2];
 
@@ -104,10 +108,12 @@ void begin() {
   arc = makeArc(kArcRadius, kArcWidth, kDayArc);
   lv_obj_set_style_arc_rounded(arc, true, LV_PART_MAIN);
 
-  dayHand = makeHand(dayHandPts, 4, kDayHand);
+  // Like a watch: the slow day hand is short and thick (an hour hand),
+  // the fast hour hand is long and thin with a dot (a minute hand).
+  dayHand = makeHand(dayHandPts, 12, kDayHand);
   hourHand = makeHand(hourHandPts, 3, kHourHand);
   hourDot = lv_obj_create(scr);
-  lv_obj_set_size(hourDot, 14, 14);
+  lv_obj_set_size(hourDot, kDotSize, kDotSize);
   lv_obj_set_style_radius(hourDot, LV_RADIUS_CIRCLE, 0);
   lv_obj_set_style_bg_color(hourDot, kHourHand, 0);
   lv_obj_set_style_border_width(hourDot, 0, 0);
@@ -115,16 +121,17 @@ void begin() {
 
   // Text lives in a transparent box so it can drift a few pixels against burn-in.
   textBox = lv_obj_create(scr);
-  lv_obj_set_size(textBox, 340, 240);
+  lv_obj_set_size(textBox, 340, 300);
   lv_obj_center(textBox);
   lv_obj_set_style_bg_opa(textBox, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(textBox, 0, 0);
   lv_obj_set_style_pad_all(textBox, 0, 0);
   lv_obj_clear_flag(textBox, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
 
-  timeLabel = makeLabel(textBox, &lv_font_montserrat_48, lv_color_white(), -46);
-  rulerLabel = makeLabel(textBox, &lv_font_montserrat_28, kDayText, 14);
-  hourLabel = makeLabel(textBox, &lv_font_montserrat_20, lv_color_hex(0xB0B0B0), 60);
+  timeLabel = makeLabel(textBox, &lv_font_montserrat_48, lv_color_white(), -64);
+  rulerLabel = makeLabel(textBox, &lv_font_montserrat_40, kDayText, -8);
+  spanLabel = makeLabel(textBox, &lv_font_montserrat_28, lv_color_hex(0xC8C8C8), 40);
+  lengthLabel = makeLabel(textBox, &lv_font_montserrat_28, lv_color_hex(0x9A9A9A), 78);
 }
 
 void update(const planetary::ClockState& s, time_t now) {
@@ -138,8 +145,10 @@ void update(const planetary::ClockState& s, time_t now) {
 
   formatHm(s.hourStart, a, sizeof a);
   formatHm(s.hourEnd, b, sizeof b);
-  snprintf(buf, sizeof buf, "%s - %d min - %s", a, static_cast<int>(std::lround(s.hourLengthMin)), b);
-  lv_label_set_text(hourLabel, buf);
+  snprintf(buf, sizeof buf, "%s - %s", a, b);
+  lv_label_set_text(spanLabel, buf);
+  snprintf(buf, sizeof buf, "%d min", static_cast<int>(std::lround(s.hourLengthMin)));
+  lv_label_set_text(lengthLabel, buf);
 
   // Hour arc.
   lv_obj_set_style_arc_color(arc, s.isDay ? kDayArc : kNightArc, LV_PART_MAIN);
@@ -148,10 +157,10 @@ void update(const planetary::ClockState& s, time_t now) {
   lv_arc_set_bg_angles(arc, start, end);
 
   // Virtual hands crossing the arc.
-  setHand(dayHand, dayHandPts, s.screenDayHandDeg, kArcRadius - 20, kArcRadius + 10);
-  setHand(hourHand, hourHandPts, s.screenHourHandDeg, kArcRadius - 34, kArcRadius + 6);
-  const lv_point_t dot = polar(s.screenHourHandDeg, kArcRadius - 40);
-  lv_obj_set_pos(hourDot, dot.x - 7, dot.y - 7);
+  setHand(dayHand, dayHandPts, s.screenDayHandDeg, kDayHandIn, kDayHandOut);
+  setHand(hourHand, hourHandPts, s.screenHourHandDeg, kHourHandIn, kHourHandOut);
+  const lv_point_t dot = polar(s.screenHourHandDeg, kHourHandIn);
+  lv_obj_set_pos(hourDot, dot.x - kDotSize / 2, dot.y - kDotSize / 2);
 
   // Burn-in protection: drift the text through a small square, one step per minute.
   static const int8_t kDrift[8][2] = {{0, 0}, {3, 0}, {3, 3}, {0, 3}, {-3, 3}, {-3, 0}, {-3, -3}, {0, -3}};
