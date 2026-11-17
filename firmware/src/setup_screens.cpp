@@ -83,7 +83,10 @@ lv_obj_t* makeButton(lv_obj_t* parent, const char* text, int y, lv_event_cb_t cb
 lv_obj_t* makeRoller(lv_obj_t* parent, int w, int x, int y, int rows) {
   lv_obj_t* r = lv_roller_create(parent);
   lv_obj_set_width(r, w);
+  // The selected row is drawn separately with the SELECTED part's style, so its line
+  // spacing must match the main part's or the highlighted text drifts off its row.
   lv_obj_set_style_text_line_space(r, 6, 0);
+  lv_obj_set_style_text_line_space(r, 6, LV_PART_SELECTED);
   lv_roller_set_visible_row_count(r, rows);
   lv_obj_align(r, LV_ALIGN_CENTER, x, y);
   lv_obj_set_style_bg_color(r, lv_color_black(), 0);
