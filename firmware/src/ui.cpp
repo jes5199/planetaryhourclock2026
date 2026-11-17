@@ -6,6 +6,7 @@
 
 #include "amoled.h"
 #include "lvgl.h"
+#include "tabular_font.h"
 
 extern "C" {
 LV_FONT_DECLARE(font_time_96)  // Montserrat Medium 96 px, digits and colon (src/fonts)
@@ -155,11 +156,15 @@ void begin() {
   lv_obj_set_style_pad_all(textBox, 0, 0);
   lv_obj_clear_flag(textBox, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
 
-  timeLabel = makeLabel(textBox, &font_time_96, lv_color_white(), -70);
-  rulerLabel = makeLabel(textBox, &lv_font_montserrat_48, lv_color_white(), -4);
-  spanLabel = makeLabel(textBox, &lv_font_montserrat_48, lv_color_hex(0xC8C8C8), 46);
-  lengthLabel = makeLabel(textBox, &lv_font_montserrat_48, lv_color_hex(0x9A9A9A), 96);
-  countdownLabel = makeLabel(textBox, &lv_font_montserrat_28, lv_color_hex(0x707070), 140);
+  // All numerals are fixed-width so the text doesn't shuffle as digits change.
+  const lv_font_t* big = makeTabularFont(&font_time_96);
+  const lv_font_t* medium = makeTabularFont(&lv_font_montserrat_48);
+  const lv_font_t* small = makeTabularFont(&lv_font_montserrat_28);
+  timeLabel = makeLabel(textBox, big, lv_color_white(), -70);
+  rulerLabel = makeLabel(textBox, medium, lv_color_white(), -4);
+  spanLabel = makeLabel(textBox, medium, lv_color_hex(0xC8C8C8), 46);
+  lengthLabel = makeLabel(textBox, medium, lv_color_hex(0x9A9A9A), 96);
+  countdownLabel = makeLabel(textBox, small, lv_color_hex(0x707070), 140);
 }
 
 void update(const planetary::ClockState& s, time_t now) {
@@ -180,7 +185,7 @@ void update(const planetary::ClockState& s, time_t now) {
   lv_label_set_text(lengthLabel, buf);
   // Time left in this hour, counting down (minutes can pass 59 in a long hour).
   const long left = s.hourEnd > now ? static_cast<long>(s.hourEnd - now) : 0;
-  snprintf(buf, sizeof buf, "%ld:%02ld left", left / 60, left % 60);
+  snprintf(buf, sizeof buf, "%ld:%02ld", left / 60, left % 60);
   lv_label_set_text(countdownLabel, buf);
 
   lv_obj_set_style_arc_color(arc, pal.arc, LV_PART_MAIN);
