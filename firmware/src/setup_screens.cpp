@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <initializer_list>
 #include <ctime>
 #include <string>
 #include <vector>
@@ -13,6 +14,7 @@
 #include "lvgl.h"
 #include "settings.h"
 #include "setup_mode.h"
+#include "time_status.h"
 #include "tz.h"
 
 namespace setup_screens {
@@ -31,6 +33,7 @@ constexpr int kFirstYear = 2025, kLastYear = 2045;
 lv_obj_t* homeScreen;
 lv_obj_t* homeQr;
 lv_obj_t* homeInfo;
+lv_obj_t* homeClose;
 lv_obj_t* timeScreen;
 lv_obj_t* timeRollers[5];  // hour, minute, day, month, year
 lv_obj_t* pickScreen;
@@ -124,14 +127,37 @@ std::string numberList(int from, int to, const char* fmt) {
 void openTime(lv_event_t*);
 void openPlace(lv_event_t*);
 
+void closeSetup(lv_event_t*) { setup_mode::stop(); }
+
+// The close button only appears once the clock can show a real time.
+void refreshHome(lv_event_t* = nullptr) {
+  if (time_status::valid()) lv_obj_clear_flag(homeClose, LV_OBJ_FLAG_HIDDEN);
+  else lv_obj_add_flag(homeClose, LV_OBJ_FLAG_HIDDEN);
+}
+
 void buildHome() {
   homeScreen = makeScreen();
+  lv_obj_add_event_cb(homeScreen, refreshHome, LV_EVENT_SCREEN_LOADED, nullptr);
   makeButton(homeScreen, "Time", kTopY, openTime, true);
   homeQr = lv_qrcode_create(homeScreen, 180, lv_color_black(), lv_color_white());
   lv_obj_set_style_border_color(homeQr, lv_color_white(), 0);
   lv_obj_set_style_border_width(homeQr, 10, 0);
   lv_obj_align(homeQr, LV_ALIGN_CENTER, 0, -12);
   homeInfo = makeLabel(homeScreen, "", kDim, 0, 104);
+
+  // A round close button in the space left of the QR code.
+  homeClose = lv_btn_create(homeScreen);
+  lv_obj_set_size(homeClose, 72, 72);
+  lv_obj_align(homeClose, LV_ALIGN_CENTER, -166, -12);
+  lv_obj_set_style_radius(homeClose, LV_RADIUS_CIRCLE, 0);
+  lv_obj_set_style_bg_color(homeClose, lv_color_hex(0x2A2A36), 0);
+  lv_obj_set_style_bg_color(homeClose, lv_color_hex(0x5A5A70), LV_STATE_PRESSED);
+  lv_obj_set_ext_click_area(homeClose, 14);
+  lv_obj_add_event_cb(homeClose, closeSetup, LV_EVENT_CLICKED, nullptr);
+  lv_obj_t* x = lv_label_create(homeClose);
+  lv_label_set_text(x, LV_SYMBOL_CLOSE);
+  lv_obj_set_style_text_color(x, lv_color_white(), 0);
+  lv_obj_center(x);
   makeButton(homeScreen, "Place", kBottomY, openPlace, true);
 }
 
@@ -283,7 +309,7 @@ void pickNext(lv_event_t*) {
   } else {
     if (sel >= static_cast<int>(cityCount)) return;
     const cities::Result& c = cityList[sel];
-    chosenPlace = std::string(c.name) + ", " + (*c.region ? c.region : c.country);
+    chosenPlace = std::string(c.display) + ", " + (*c.region ? c.region : c.country);
     chosenZone = c.tzName ? c.tzName : settings::current().tzName;
     openCoords(c.lat, c.lon);
     return;
@@ -324,8 +350,10 @@ void preselect(int step, int* select) {
     }
   } else {
     for (size_t i = 0; i < cityCount; ++i) {
-      const size_t n = strlen(cityList[i].name);
-      if (strncmp(place, cityList[i].name, n) == 0 && place[n] == ',') *select = i;
+      for (const char* nm : {cityList[i].display, cityList[i].name}) {
+        const size_t n = strlen(nm);
+        if (strncmp(place, nm, n) == 0 && place[n] == ',') *select = i;
+      }
     }
   }
 }
@@ -352,8 +380,8 @@ void showPickStep() {
     // The area's largest cities, listed A-Z so they're easy to scan.
     cityCount = areaCount ? cities::inArea(areaList[chosen[2] < 0 ? 0 : chosen[2]], cityList, kMaxCities) : 0;
     std::sort(cityList, cityList + cityCount,
-              [](const cities::Result& a, const cities::Result& b) { return strcmp(a.name, b.name) < 0; });
-    for (size_t i = 0; i < cityCount; ++i) add(cityList[i].name);
+              [](const cities::Result& a, const cities::Result& b) { return strcmp(a.display, b.display) < 0; });
+    for (size_t i = 0; i < cityCount; ++i) add(cityList[i].display);
     if (cityCount == 0) add("(no cities listed)");
   }
   preselect(pickStep, &select);
@@ -375,6 +403,7 @@ void showHome(const char* ssid, const char* password, const char* wifiQr) {
   if (!homeScreen) buildHome();
   lv_qrcode_update(homeQr, wifiQr, strlen(wifiQr));
   lv_label_set_text_fmt(homeInfo, "%s  %s", ssid, password);
+  refreshHome();
   lv_scr_load(homeScreen);
 }
 

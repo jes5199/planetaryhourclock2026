@@ -10,6 +10,8 @@ Downloads into tools/data/geonames/ (git-ignored) if the files are missing.
 import csv
 import io
 import pathlib
+import re
+import unicodedata
 import urllib.request
 import zipfile
 
@@ -25,6 +27,51 @@ TZ_ALIASES = {
     "Europe/Kyiv": "Europe/Kiev", "Pacific/Kanton": "Pacific/Enderbury",
     "America/Indianapolis": "America/Indiana/Indianapolis",
 }
+
+
+# The clock's fonts are ASCII-only and its scroll wheels are ~24 characters wide, so names
+# shown on the clock are ASCII and shortened. (The phone page shows the full UTF-8 city names.)
+SHORT_NAMES = {
+    "South Georgia and the South Sandwich Islands": "S. Georgia & S. Sandwich Is.",
+    "Democratic Republic of the Congo": "DR Congo",
+    "Republic of the Congo": "Congo",
+    "Bonaire, Saint Eustatius and Saba": "Caribbean Netherlands",
+    "Central African Republic": "Central African Rep.",
+    "French Southern Territories": "French S. Territories",
+    "Northern Mariana Islands": "N. Mariana Islands",
+    "Turks and Caicos Islands": "Turks & Caicos",
+    "Palestinian Territory": "Palestine",
+    "Dadra and Nagar Haveli and Daman and Diu": "Dadra, Daman & Diu",
+    "Autonomous Region in Muslim Mindanao": "Muslim Mindanao",
+    "South West Ethiopia Peoples' Region": "South West Ethiopia",
+    "Saint Vincent and the Grenadines": "St Vincent & Grenadines",
+    "Australian Capital Territory": "ACT",
+}
+REGION_SUFFIXES = [" Regional Corporation", " Regional State", " Autonomous District",
+                   " Department", " Province", " Governorate", " Region", " Republic"]
+REGION_PREFIXES = ["Urban Municipality of "]
+
+
+def to_ascii(text):
+    return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+
+
+def shorten(name, region=False):
+    name = name.strip()
+    name = SHORT_NAMES.get(name, name)
+    if region:
+        name = re.sub(r" \([^)]*\)", "", name)  # "Zabaykalskiy (Transbaikal) Kray"
+        for p in REGION_PREFIXES:
+            if name.startswith(p):
+                name = name[len(p):]
+        for suf in REGION_SUFFIXES:
+            if name.endswith(suf) and len(name) > len(suf) + 3:
+                name = name[: -len(suf)]
+                break
+    name = re.sub(r"\bSainte([ -])", r"Ste\1", name)
+    name = re.sub(r"\bSaint([ -])", r"St\1", name)
+    name = name.replace(" and ", " & ")
+    return to_ascii(name).strip(" ,")
 
 
 def fetch(name):
@@ -46,15 +93,15 @@ def main():
 
     admin1 = {}
     for line in fetch("admin1CodesASCII.txt").read_text(encoding="utf-8").splitlines():
-        code, name, _ascii, _id = line.split("\t")
-        admin1[code] = name
+        code, _name, ascii_name, _id = line.split("\t")
+        admin1[code] = shorten(ascii_name, region=True)
 
     countries = {}
     for line in fetch("countryInfo.txt").read_text(encoding="utf-8").splitlines():
         if line.startswith("#") or not line.strip():
             continue
         f = line.split("\t")
-        countries[f[0]] = (f[4], f[8])  # name, continent code (AF AN AS EU NA OC SA)
+        countries[f[0]] = (shorten(f[4]), f[8])  # name, continent code (AF AN AS EU NA OC SA)
 
     zones = sorted(row[0] for row in csv.reader(open(ROOT / "tools/data/posix_tz_db/zones.csv", newline="")))
     zone_index = {z: i for i, z in enumerate(zones)}
@@ -87,8 +134,10 @@ def main():
             out.write(f"  {{{c_str(c)}, {c_str(name)}, {c_str(continent)}}},\n")
         out.write("};\n\nstatic const City kCities[] = {\n")
         for pop, name, ascii_name, region, cc, lat, lon, tzi in rows:
-            search = ascii_name.lower()
-            out.write(f"  {{{c_str(name)}, {c_str(search)}, {region_index[region]}, {country_index[cc]}, "
+            search = to_ascii(ascii_name).lower()
+            display = shorten(ascii_name or to_ascii(name))
+            display_field = "nullptr" if display == name else c_str(display)  # same as name: no copy
+            out.write(f"  {{{c_str(name)}, {display_field}, {c_str(search)}, {region_index[region]}, {country_index[cc]}, "
                       f"{lat:.4f}f, {lon:.4f}f, {pop}u, {tzi}}},\n")
         out.write("};\n")
     print(f"wrote {len(rows)} cities, {len(region_names)} regions, {len(country_codes)} countries "

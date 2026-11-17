@@ -11,8 +11,9 @@ namespace cities {
 namespace {
 
 struct City {
-  const char* name;
-  const char* search;  // lowercase ASCII form of the name
+  const char* name;     // UTF-8
+  const char* display;  // ASCII, shortened ("St" for "Saint", "&" for "and"); nullptr = same as name
+  const char* search;   // lowercase ASCII form of the full name
   uint16_t region;
   uint8_t country;
   float lat, lon;
@@ -32,7 +33,7 @@ bool matches(const char* name, const char* q, size_t qlen) {
 }
 
 Result toResult(const City& c) {
-  return {c.name, kRegions[c.region], kCountries[c.country][1], c.lat, c.lon,
+  return {c.name, c.display ? c.display : c.name, kRegions[c.region], kCountries[c.country][1], c.lat, c.lon,
           c.tz >= 0 ? tz::zoneName(c.tz) : nullptr};
 }
 

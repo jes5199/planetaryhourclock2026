@@ -7,7 +7,8 @@
 namespace cities {
 
 struct Result {
-  const char* name;      // UTF-8, e.g. "São Paulo"
+  const char* name;      // UTF-8, e.g. "São Paulo" (for the phone page)
+  const char* display;   // ASCII and shortened, e.g. "Sao Paulo" (for the clock's fonts)
   const char* region;    // state/province, may be ""
   const char* country;   // e.g. "United States"
   float lat, lon;

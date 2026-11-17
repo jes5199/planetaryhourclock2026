@@ -49,7 +49,13 @@ The setup screen shows a Wi-Fi QR code and two buttons. Either route works on it
   circle: the screen is only ~36 mm across. (LVGL 8 can't draw a scroll wheel taller than
   8191 px, about 230 rows, which is why the lists are split into steps.)
 
-Long-press the setup screen, tap Done on the phone, or wait 10 minutes to go back to the clock.
+Long-press the setup screen, tap the ✕ left of the QR code (shown once the clock has a real
+time), tap Done on the phone, or wait 10 minutes to go back to the clock.
+
+The clock's fonts are ASCII-only and its scroll wheels about 24 characters wide, so the names
+it shows are ASCII spellings, shortened ("St" for "Saint", "&" for "and", generic suffixes like
+"Department" or "Province" dropped, a few hand-written short forms). The phone page shows the
+full city names; search matches the full names.
 The Wi-Fi radio is off whenever setup is closed.
 
 Phone GPS isn't used: browsers only allow it on HTTPS pages, and the clock's local page can't be
