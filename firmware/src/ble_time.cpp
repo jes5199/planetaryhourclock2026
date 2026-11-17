@@ -17,13 +17,13 @@ constexpr uint16_t kCurrentTimeService = 0x1805;
 constexpr uint16_t kCurrentTimeChar = 0x2A2B;
 constexpr uint16_t kLocalTimeInfoChar = 0x2A0F;
 constexpr uint16_t kAppearanceClock = 0x0100;
-constexpr uint32_t kResyncMs = 6UL * 60 * 60 * 1000;  // let the phone set the time every 6 hours
+// After a sync, rest before advertising again; otherwise a bonded iPhone reconnects at once.
+constexpr uint32_t kRestMs = 5UL * 60 * 1000;
 
 NimBLEServer* server = nullptr;
 uint32_t pairingUntil = 0;
 uint32_t lastSync = 0;
 bool everSynced = false;
-const char* statusText = "";
 
 // Hand-off from the BLE host task to the reader task, and from the reader to loop().
 volatile int pendingConn = -1;  // connection to read the time from
@@ -155,28 +155,29 @@ void loop() {
     lastSync = millis();
     everSynced = true;
     pairingUntil = 0;
-    statusText = "Time set by phone";
     Serial.println("ble: clock set from phone");
   }
 
-  if (pairingUntil && !pairingOpen()) {
-    pairingUntil = 0;
-    if (!everSynced) statusText = "";
-  }
+  if (pairingUntil && !pairingOpen()) pairingUntil = 0;
 
-  // Advertise while pairing, and for bonded phones when a sync is due.
-  const bool due = paired() && (!time_status::valid() || !everSynced || millis() - lastSync > kResyncMs);
+  // Advertise while pairing; and for bonded phones whenever setup (Wi-Fi) is closed, apart
+  // from a rest after each sync. So a nearby iPhone keeps the clock set with no taps.
+  const bool rested = !everSynced || millis() - lastSync > kRestMs;
+  const bool due = paired() && !setup_mode::active() && (rested || !time_status::valid());
   setAdvertising(pendingConn < 0 && (pairingOpen() || due));
 }
 
 void startPairing(uint32_t seconds) {
   pairingUntil = millis() + seconds * 1000;
-  statusText = "Pair in iPhone Bluetooth";
   Serial.printf("ble: pairing open for %lu s\n", static_cast<unsigned long>(seconds));
 }
 
 bool pairing() { return pairingOpen(); }
 bool paired() { return NimBLEDevice::getNumBonds() > 0; }
-const char* status() { return statusText; }
+const char* status() {
+  if (pairingOpen()) return "Pair in iPhone Bluetooth";
+  if (everSynced && millis() - lastSync < 10000) return "Time set by phone";
+  return "";
+}
 
 }  // namespace ble_time
