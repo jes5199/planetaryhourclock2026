@@ -92,6 +92,30 @@ def symbol(chaldean, size):
     return symbols.text(SYMBOLS[chaldean], size)
 
 
+# ---- LED sites (shared with the LED board, gen_leds.py) -----------------------------------------
+
+def star_point_angle(k):
+    """Angle of the star point at the end of weekday k's slice (its midnight)."""
+    return (pos(k) + 0.5) * W
+
+
+def led_sites():
+    """Every LED window, as dicts with kind, index within its kind, dial angle (degrees
+    clockwise from the top), radius and window diameter. The LED board puts an LED under each."""
+    sites = []
+    for rp in range(7):          # day ring: 12 per slice, LED index 12p + j (firmware's dayRingLed)
+        for rj in range(12):
+            sites.append(dict(kind="rim", i=12 * rp + rj, angle=(rp - 0.5) * W + (rj + 0.5) * W / 12,
+                              r=U(315), d=WINDOW_D["rim"]))
+    for k in range(7):           # star points, by the weekday whose midnight they mark
+        sites.append(dict(kind="star", i=k, angle=star_point_angle(k), r=U(244), d=WINDOW_D["star"]))
+    for pl in range(7):          # star corners, middle of planet wedge pl (0 = Sun at the top)
+        sites.append(dict(kind="corner", i=pl, angle=pl * W, r=U(167), d=WINDOW_D["corner"]))
+    for q, a in enumerate((0, 90, 180, 270)):  # compass tips: noon, sunset, midnight, sunrise
+        sites.append(dict(kind="compass", i=q, angle=a, r=U(141), d=WINDOW_D["compass"]))
+    return sites
+
+
 # ---- the dial ----------------------------------------------------------------------------------
 
 def build():
@@ -168,15 +192,8 @@ def build():
         gold = gold.difference(disc(U(7), p)).union(disc(U(6), p))
 
     # LED windows: 84 on the rim, 7 star points, 7 star inner corners, 4 compass tips.
-    for rp in range(7):
-        for rj in range(12):
-            windows.append(disc(WINDOW_D["rim"] / 2, polar(U(315), (rp - 0.5) * W + (rj + 0.5) * W / 12)))
-    for p in star_points:
-        windows.append(disc(WINDOW_D["star"] / 2, p))
-    for pl in range(7):
-        windows.append(disc(WINDOW_D["corner"] / 2, polar(U(167), pl * W)))
-    for a in (0, 90, 180, 270):
-        windows.append(disc(WINDOW_D["compass"] / 2, polar(U(141), a)))
+    for s in led_sites():
+        windows.append(disc(s["d"] / 2, polar(s["r"], s["angle"])))
     pinholes = [w.centroid.coords[0] for w in windows]
     windows = unary_union(windows)
 

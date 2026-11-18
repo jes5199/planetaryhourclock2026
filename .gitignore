@@ -11,3 +11,4 @@ hardware/out/
 __pycache__/
 *.kicad_prl
 backups/
+hardware/*/*.kicad_pro

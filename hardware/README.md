@@ -7,6 +7,7 @@ PCBs for the clock, generated as KiCad 9 source by Python scripts. Edit the scri
 | --- | --- | --- |
 | `dial/dial.kicad_pcb` | `gen_dial.py` | The 146 mm front dial: all the artwork, the LED windows, the centre hole |
 | `coupon/coupon.kicad_pcb` | `gen_coupon.py` | A 78 × 34 mm test coupon of eight LED-window styles |
+| `leds/leds.kicad_pcb` | `gen_leds.py` | The LED board behind the dial: 102 addressable LEDs, and the clock's power hub |
 
 The dial follows mockup **N · 84-LED day ring** in the "Planetary Hours Dial" design canvas: its
 SVG units are converted at 23/102 mm per unit (the 46 mm screen is r = 102 there), which puts
@@ -48,6 +49,43 @@ small registration errors don't show bare edges.
 - Order the coupon at 0.8 mm and 1.6 mm, light it from behind, and pick a window style (and a
   board thickness) before ordering the dial.
 
+## LED board
+
+Same outline, centre hole and standoff holes as the dial, sitting a few millimetres behind it.
+It takes the LED positions from `gen_dial.led_sites()`, so a window and its LED can't drift
+apart. Assembled by JLCPCB on **both sides**; 1.6 mm, so it can carry the servo board.
+
+**Front** (facing the dial): only the 102 WS2812B-2020 LEDs and a 100 nF capacitor each, so it
+stays flat. Copper: a 5 V pour plus the data tracks.
+
+**Back**: the power hub and connectors, a GND pour, and four M2.5 holes (58 × 23 mm) for the
+servo board, currently in the lower half until the hand mechanism is designed (`SERVO_CENTRE`).
+
+| Connector | Part | Pins | Goes to |
+| --- | --- | --- | --- |
+| J1 12V IN | JST XH 2-pin | 1 +12 V, 2 GND | A panel-mount 5.5 × 2.1 mm jack on the case (12 V ≥ 3 A brick) |
+| J2 12V SERVO | JST XH 2-pin | 1 +12 V, 2 GND | The servo board's barrel jack (a short lead with a 5.5 × 2.1 mm plug) |
+| J3 5V SCREEN | JST XH 2-pin | 1 +5 V, 2 GND | The screen board's 5 V pin (2×14 header J1 pin 4, GND pin 6), wires up the centre post |
+| J4 LED DATA | 1.25 mm 3-pin | 1 nc, 2 GND, 3 data | The servo board's RGB-LED header (5 V, GND, LED-OUT): a straight 1:1 cable; its 5 V pin lands on nc |
+
+Power: 12 V in → SS54 diode (reverse-polarity protection) → 12 V to the servo board and to a
+TPS563201 buck (4.7 µH, 2 × 22 µF, 56k/10k divider: 5.07 V, up to 3 A) → 5 V for the LEDs and the
+screen. EN is tied to VIN (both rated 19 V). The servo board's own regulator never carries LED
+current, and its 5 V pin is not connected to this board's 5 V.
+
+**Data chain** (written to `leds/led-chain.csv` with each LED's angle): the servo board's two
+on-board LEDs come first, then here: rim LEDs 0–83 clockwise from the start of Sunday's slice
+(so chain index = the firmware's `dayRingLed`), then the 7 star points, the 7 star corners and the
+4 compass tips, each set clockwise. Jumps between sets go through the back.
+
+Before ordering:
+- Check part rotations in JLCPCB's assembly preview (KiCad and JLCPCB disagree on some
+  footprints' zero angle), especially the LEDs' pin-1 corner, the TSOT-23-6 and the diode.
+- The through-hole connector pins poke ~1.5 mm out of the front: the gap to the dial (and any
+  baffle) has to clear them.
+- KiCad's DRC reports 0 errors; the only warnings are `lib_footprint_mismatch`, because the
+  generator strips the hidden silkscreen from the library footprints.
+
 ## Build
 
 ```sh
@@ -56,7 +94,17 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python gen_dial.py      # -> dial/dial.kicad_pcb
 .venv/bin/python gen_coupon.py    # -> coupon/coupon.kicad_pcb
 ./render.sh dial/dial.kicad_pcb   # DRC + SVG + 3D render into out/ (uses KiCad 9's kicad-cli)
+
+.venv/bin/python gen_leds.py      # -> leds/leds.kicad_pcb, leds-bom.csv, led-chain.csv
+./fill_zones.sh leds/leds.kicad_pcb   # fill the copper pours (KiCad's own filler, via its Python)
+./render.sh leds/leds.kicad_pcb
+./jlc.sh leds/leds.kicad_pcb      # -> out/leds-jlc/: gerbers.zip, bom.csv, cpl.csv for JLCPCB
 ```
+
+Boards with parts (`gen_leds.py`) place KiCad's own library footprints (read from the KiCad app),
+set their nets, and write tracks, vias and zone outlines; `kicadart.Part` computes pad positions
+the way KiCad does, including mirroring for the back. KiCad fills the zones, since its clearance
+and island rules decide connectivity; DRC then confirms every pad is connected.
 
 `template.kicad_pcb` is an empty KiCad 9 board with the stackup; scripts append their
 `gr_poly`, `gr_circle` and footprint s-expressions to it (`kicadart.py`).

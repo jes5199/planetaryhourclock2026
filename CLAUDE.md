@@ -41,11 +41,14 @@ colours; `bench` times screen redraws at boot.
 
 ## PCBs (hardware/)
 
-Boards are generated, not hand-edited: `hardware/gen_dial.py` and `gen_coupon.py` write KiCad 9
-`.kicad_pcb` source (s-expressions appended to `template.kicad_pcb`, via `kicadart.py`). Run them
+Boards are generated, not hand-edited: `hardware/gen_dial.py`, `gen_coupon.py` and `gen_leds.py`
+write KiCad 9 `.kicad_pcb` source (s-expressions appended to `template.kicad_pcb`, via `kicadart.py`). Run them
 with `hardware/.venv/bin/python`, then `hardware/render.sh <board>` for DRC, an SVG and a 3D
 render (look at the PNG). The dial's geometry comes from mockup N (`RingLeds.dc.html`) in the
-"Planetary Hours Dial" design canvas, at 23/102 mm per SVG unit. The user's other repos
+"Planetary Hours Dial" design canvas, at 23/102 mm per SVG unit. The LED board (`gen_leds.py`)
+places real library footprints with nets; after generating it, run `hardware/fill_zones.sh` (KiCad's
+zone filler through KiCad's bundled Python), then `render.sh` (DRC must show 0 unconnected; the
+`lib_footprint_mismatch` warnings are expected), then `jlc.sh` for JLCPCB's Gerbers, BOM and CPL. The user's other repos
 (jes5199/astrolabium, jes5199/clockwork) generate KiCad source the same way.
 
 ## Talking to the clock over serial

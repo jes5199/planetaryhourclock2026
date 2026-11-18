@@ -21,8 +21,8 @@ The design, the dial and the maths are written up in the design doc,
 | Centre screen | Working: clock face, setup by phone or touchscreen, settings saved in flash |
 | Hands | Servo board running our firmware; both servos turn freely past one revolution. Next: link it to the screen board over ESP-NOW (plan in [`hands/README.md`](hands/README.md#link-to-the-screen-board-planned-esp-now)). |
 | Dial PCB | Generated (KiCad 9), DRC clean; LED-window test coupon ready to order |
-| LED board | Not started |
-| Power | Not decided |
+| LED board | Generated (KiCad 9, DRC clean): 102 LEDs and the 12 V → 5 V power hub, BOM and placement files for JLCPCB assembly; not ordered |
+| Power | One 12 V ≥ 3 A brick into the LED board, which feeds the servo board (12 V) and the screen (5 V) |
 
 ## Hardware
 
