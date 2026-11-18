@@ -12,7 +12,10 @@ README updated in the same commit as any feature change. Commit and push after e
 - Servo driver for the hands: Waveshare Servo Driver with ESP32 (original ESP32, not S3; 4 MB
   flash) over a CP2102, at `/dev/cu.usbserial-0001`. Drives two 12 V Feetech STS3215 servos; the
   servos need its 12 V barrel jack, USB only powers the ESP32. Fast esptool reads (460800+) came
-  back corrupted; 115200 works. Waveshare's stock firmware is backed up in `backups/` (git-ignored).
+  back corrupted; 115200 works. Waveshare's stock firmware is backed up in `backups/` (git-ignored,
+  full 4 MB image, verified apart from the nvs partition, which the stock firmware rewrites at
+  boot). Restore with `esptool.py --port /dev/cu.usbserial-0001 write-flash 0 backups/servo-driver-stock-*.bin`
+  (esptool is `~/.platformio/packages/tool-esptoolpy/esptool.py`, run with the penv python).
 - Planned, not yet connected: an LED ring.
 
 ## Build, test, flash
