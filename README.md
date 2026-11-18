@@ -19,7 +19,7 @@ The design, the dial and the maths are written up in the design doc,
 | Part | State |
 | --- | --- |
 | Centre screen | Working: clock face, setup by phone or touchscreen, settings saved in flash |
-| Hands | Waiting on hardware (servo driver board) |
+| Hands | Servo board running our firmware; it finds and reads a servo. Driving the hands from the screen board is next. |
 | Dial PCB | Generated (KiCad 9), DRC clean; LED-window test coupon ready to order |
 | LED board | Not started |
 | Power | Not decided |
@@ -29,7 +29,7 @@ The design, the dial and the maths are written up in the design doc,
 | Part | What | Notes |
 | --- | --- | --- |
 | Centre screen and main controller | [Waveshare ESP32-S3-Touch-AMOLED-1.43](https://www.waveshare.com/esp32-s3-touch-amoled-1.43.htm) | 466×466 round AMOLED, touch, PCF85063 RTC |
-| Hand drive | [Waveshare Servo Driver with ESP32](https://www.waveshare.com/Servo-Driver-with-ESP32.htm) (ESP32-D0WD-V3, 4 MB flash, CP2102 USB serial) + 2× Feetech STS3215 serial bus servos, 12 V version | On the desk, still on stock firmware. The screen board will send the hand angles to it. |
+| Hand drive | [Waveshare Servo Driver with ESP32](https://www.waveshare.com/Servo-Driver-with-ESP32.htm) (ESP32-D0WD-V3, 4 MB flash, CP2102 USB serial) + 2× Feetech STS3215 serial bus servos, 12 V version | On the desk, running `hands/`. The screen board will send the hand angles to it. |
 | Servo power | 12 V DC brick, ≥ 2 A, 5.5 × 2.1 mm centre-positive plug | The board passes its input straight to the servos, so it must match their 12 V rating. USB alone runs the ESP32 but not the servos. |
 | Main battery (optional) | 3.7 V single-cell LiPo, MX1.25 2-pin plug, ≥ 500 mAh | Charged by the board at 0.5 A. Check polarity before plugging in. |
 | RTC backup | Rechargeable 3 V ML1220 on the SH1.0 2-pin "RTC" header | The header trickle-charges, so never use a CR (non-rechargeable) cell. Without one, the time is lost when power is cut and the clock asks to be set up again. |
@@ -37,5 +37,6 @@ The design, the dial and the maths are written up in the design doc,
 ## Layout
 
 - `firmware/`: the screen board's firmware (PlatformIO). See [`firmware/README.md`](firmware/README.md).
+- `hands/`: the servo board's firmware (PlatformIO). See [`hands/README.md`](hands/README.md).
 - `hardware/`: the PCBs, generated as KiCad source. See [`hardware/README.md`](hardware/README.md).
 - `tools/`: scripts that generate the firmware's time-zone and city tables, and their source data.
