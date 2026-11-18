@@ -434,7 +434,7 @@ def silk(L, conns):
     blocks = conns["blocks"]
     jb = blocks["j1"]
     s.append(back_label("12V IN", 1.25, jb.T((0, -BOARD_R + 18.3)), upright(JACK_ANGLE)))
-    s.append(back_label("12V  ≥3A  5.5×2.1  centre +", 1.1, jb.T((0, -BOARD_R + 16.5)), upright(JACK_ANGLE)))
+    s.append(back_label("12V  5.5×2.1  centre +", 1.1, jb.T((0, -BOARD_R + 16.5)), upright(JACK_ANGLE)))
     for key, text in (("j2", "12V SERVO"), ("j3", "5V SCREEN"), ("j4", "LED DATA")):
         j, B = conns[key], blocks[key]
         p1 = B.p(j, 1)

@@ -67,7 +67,7 @@ right, in the band between the star points and the rim LEDs; J3 and J4 are at th
 
 | Connector | Part | Pins | Goes to |
 | --- | --- | --- | --- |
-| J1 12V IN | SMD 5.5 × 2.1 mm DC jack, XKB DC-005-5A-2.0-SMT (C319134) | centre +12 V, sleeve GND | The 12 V ≥ 3 A brick. At 6 o'clock, mouth flush with the board edge: the cord leaves the bottom of the clock |
+| J1 12V IN | SMD 5.5 × 2.1 mm DC jack, XKB DC-005-5A-2.0-SMT (C319134), rated 2.5 A (JLCPCB's data; the "5A" in the name is a series code) | centre +12 V, sleeve GND, switch GND | A regulated 12 V brick (2–3 A is plenty; a bigger one is fine, the jack limits what's drawn). At 6 o'clock, mouth flush with the board edge: the cord leaves the bottom of the clock |
 | J2 12V SERVO | JST XH 2-pin | 1 +12 V, 2 GND | The servo board's barrel jack (a short lead with a 5.5 × 2.1 mm plug) |
 | J3 5V SCREEN | JST XH 2-pin | 1 +5 V (≈4.7 V, through D105), 2 GND | The screen board's 5 V pin (2×14 header J1 pin 4, GND pin 6), wires up the centre post |
 | J4 LED DATA | 1.25 mm 3-pin | 1 nc, 2 GND, 3 data | The servo board's RGB-LED header (5 V, GND, LED-OUT): a straight 1:1 cable; its 5 V pin lands on nc |
@@ -83,7 +83,10 @@ front (the LEDs and their 0402 capacitors, so both ends of each heat evenly duri
 for every part on the back (the power parts need the copper for current and heat). U1's GND pin
 also has two vias straight down to the front island.
 
-Two things the hardware doesn't protect against, so the firmware must:
+Things the hardware doesn't protect against, so the firmware must:
+- **Servo stall current.** Two STS3215s stalling draw ~2.7 A each, more than the jack's 2.5 A,
+  and it all passes the SS54 (~1.5 W at 3 A). Set the servos' torque limit so a jammed hand can't
+  pull that. Normal running (hands moving slowly, LEDs mostly dim) is well under 1 A.
 - **Brightness.** The XL-2020 LEDs draw up to 5 mA per colour, so all 102 at full white is about
   1.5 A, inside the regulator's 3 A. A firmware cap is still sensible (the screen and heat share
   the budget), and the dial only ever lights a few LEDs brightly. Check the colour order (GRB for
@@ -119,23 +122,27 @@ by its cathode band instead of by pad number. A check that places JLCPCB's footp
 finished CPL lands every pad on ours (within 0.03 mm for the LEDs, 0.2 mm for the regulator and
 diodes, where the two libraries' pads differ in size).
 
-**Reviewed** (2026-11-18) three times by independent agents against the datasheets: pinouts,
+**Reviewed** (2026-11-18) four times by independent agents against the datasheets: pinouts,
 the LED chain, the buck design, JLCPCB rules and stock, the CPL against JLCPCB's footprints, and
 the fit with the dial. Their findings are fixed above.
 
 Before ordering:
 - Upload `out/leds-jlc/` to JLCPCB's quote page and check every part in the assembly preview.
-  The CPL is corrected to JLCPCB's footprints, but the back side relies on their usual mirrored
-  convention (180° − angle). Check especially: the LEDs (data out at the package's marked
+  The CPL is corrected to JLCPCB's footprints, but the back side relies on the mirrored
+  convention (180° − angle) that kicad-jlcpcb-tools and KiBot use; JLCPCB doesn't document it and
+  has changed it before. Odd back-side angles (U1 at 330°, D103 at 348°) make a wrong
+  convention obvious in the preview. Check especially: the LEDs (data out at the package's marked
   corner, which is the silk tick), U1's pin-1 dot, the SS54 and SMAJ13A cathode bands towards
   the +12 V side, C111's + at the J2 side, and J2/J3's latches.
-- Ask JLCPCB to bake the LEDs (MSL 5) and to reflow the LED side last: a two-sided build heats
-  them twice, and they are rated 260 °C for 6 s.
-- Check stock: the LEDs (C5349955, listed by LCSC as "XL-2020RGBC-2812B"; its datasheet says
-  XL-2020RGBC-WS2812B), jack (C319134), inductor (C408410: LCSC's product page is broken but
-  JLCPCB lists 459; fallback Sunlord SWPA5040S4R7MT, C48496) and 1.25 mm header (C481433) are
-  extended parts with limited stock.
-- A round board with parts near the edge may need JLCPCB's break-off rails for assembly.
+- Tell JLCPCB the LEDs are MSL 5 (bake before use; rated 260 °C for 6 s) and let them choose
+  the reflow order: the back carries the heavy parts (the 11 mm jack, C111, L1), which shouldn't
+  hang upside down through a second pass.
+- Check stock (2026-11-18): LEDs C5349955 ~80k (listed by LCSC as "XL-2020RGBC-2812B"; its
+  datasheet says XL-2020RGBC-WS2812B), jack C319134 ~4.4k, inductor C408410 459 (LCSC's product
+  page is broken; fallback Sunlord SWPA5040S4R7MT, C48496), 1.25 mm header C481433 ~0.9–1.5k,
+  JST XH C158012 ~1.9k, TPS563201 ~4.3k. All extended parts.
+- A round board with parts near the edge may need JLCPCB's break-off rails for assembly. The DC
+  jack sits flush with the edge at 6 o'clock (its corners overhang by ~0.1 mm): no rail there.
 - The through-hole connector pins poke ~1.5 mm out of the front: the gap to the dial (and any
   baffle) has to clear them.
 - Measure the servo board's hole spacing (58 × 23 mm from Waveshare's docs) with calipers.
