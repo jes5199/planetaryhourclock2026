@@ -9,8 +9,11 @@ README updated in the same commit as any feature change. Commit and push after e
 
 - Centre screen and main controller: Waveshare ESP32-S3-Touch-AMOLED-1.43 over USB-C. On macOS
   it appears as `/dev/cu.usbmodem*` (usually `/dev/cu.usbmodem1101`). Find it with `ls /dev/cu.usbmodem*`.
-- Planned, not yet connected: Waveshare ESP32 Servo Driver board with two Feetech STS3215 servos
-  for the hands; an LED ring.
+- Servo driver for the hands: Waveshare Servo Driver with ESP32 (original ESP32, not S3; 4 MB
+  flash) over a CP2102, at `/dev/cu.usbserial-0001`. Drives two 12 V Feetech STS3215 servos; the
+  servos need its 12 V barrel jack, USB only powers the ESP32. Fast esptool reads (460800+) came
+  back corrupted; 115200 works. Waveshare's stock firmware is backed up in `backups/` (git-ignored).
+- Planned, not yet connected: an LED ring.
 
 ## Build, test, flash
 

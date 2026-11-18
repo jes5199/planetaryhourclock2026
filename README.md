@@ -29,7 +29,8 @@ The design, the dial and the maths are written up in the design doc,
 | Part | What | Notes |
 | --- | --- | --- |
 | Centre screen and main controller | [Waveshare ESP32-S3-Touch-AMOLED-1.43](https://www.waveshare.com/esp32-s3-touch-amoled-1.43.htm) | 466×466 round AMOLED, touch, PCF85063 RTC |
-| Hand drive | Waveshare ESP32 Servo Driver Expansion Board + 2× Feetech STS3215 serial bus servos | Planned. The screen board will send the hand angles to it. |
+| Hand drive | [Waveshare Servo Driver with ESP32](https://www.waveshare.com/Servo-Driver-with-ESP32.htm) (ESP32-D0WD-V3, 4 MB flash, CP2102 USB serial) + 2× Feetech STS3215 serial bus servos, 12 V version | On the desk, still on stock firmware. The screen board will send the hand angles to it. |
+| Servo power | 12 V DC brick, ≥ 2 A, 5.5 × 2.1 mm centre-positive plug | The board passes its input straight to the servos, so it must match their 12 V rating. USB alone runs the ESP32 but not the servos. |
 | Main battery (optional) | 3.7 V single-cell LiPo, MX1.25 2-pin plug, ≥ 500 mAh | Charged by the board at 0.5 A. Check polarity before plugging in. |
 | RTC backup | Rechargeable 3 V ML1220 on the SH1.0 2-pin "RTC" header | The header trickle-charges, so never use a CR (non-rechargeable) cell. Without one, the time is lost when power is cut and the clock asks to be set up again. |
 
