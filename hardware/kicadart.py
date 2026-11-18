@@ -336,9 +336,10 @@ class Part:
     relative to the board centre), computed exactly as KiCad does."""
 
     def __init__(self, lib, name, ref, value, at, rot=0.0, back=False, nets=None, lcsc=None, bom=True,
-                 silk=True):
+                 silk=True, solid=False):
         self.lib, self.name, self.ref, self.value = lib, name, ref, value
         self.silk = silk
+        self.solid = solid      # pads join copper pours solidly (no thermal relief)
         self.at, self.rot, self.back, self.nets = at, rot, back, dict(nets or {})
         self.lcsc, self.bom = lcsc, bom
         local_lib = HERE / "footprints" / f"{lib}.pretty"   # project libraries (e.g. imported JLCPCB parts)
@@ -406,6 +407,9 @@ class Part:
                 c[:] = [x for x in c if not (isinstance(x, list) and x and x[0] == "net")]
                 uid = [i for i, x in enumerate(c) if isinstance(x, list) and x and x[0] == "uuid"]
                 c.insert(uid[0] if uid else len(c), [Sym("net"), Sym(str(net[0])), net[1]])
+            if self.solid:
+                uid = [i for i, x in enumerate(c) if isinstance(x, list) and x and x[0] == "uuid"]
+                c.insert(uid[0] if uid else len(c), [Sym("zone_connect"), Sym("2")])
             return c
         if kind == "model":
             return c

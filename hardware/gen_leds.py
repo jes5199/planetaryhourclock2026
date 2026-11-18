@@ -87,10 +87,13 @@ class Layout:
         self.counters[prefix] = self.counters.get(prefix, 0) + 1
         return f"{prefix}{self.counters[prefix]}"
 
-    def add(self, spec, prefix, at, rot=0.0, back=False, nets=None, ref=None, silk=True):
+    def add(self, spec, prefix, at, rot=0.0, back=False, nets=None, ref=None, silk=True, solid=None):
         lib, name, value, lcsc = spec
+        # Thermal relief only on the front (LEDs and their 0402s); the power parts on the back
+        # join the pours solidly, for current and heat.
         p = Part(lib, name, ref or self.ref(prefix), value, at, rot, back,
-                 {k: self.nets[v] for k, v in (nets or {}).items()}, lcsc, silk=silk)
+                 {k: self.nets[v] for k, v in (nets or {}).items()}, lcsc, silk=silk,
+                 solid=back if solid is None else solid)
         self.parts.append(p)
         return p
 
@@ -322,9 +325,10 @@ def place_power(L, first_led_site):
     # Ground: U1's GND pin and the input capacitors' GND ends drop through vias to a GND
     # island on the front, directly under the chip, closing the input loop in a few mm.
     x1, y1 = P(u1, 1)
-    gv1 = (x1 - 0.46, y1 + 0.95)
-    B.via(gv1, "GND")
-    B.track([P(u1, 1), gv1], "GND", 0.4)
+    gv1, gv2 = (x1 - 0.46, y1 + 0.95), (x1 - 0.46, y1 + 1.8)
+    for v in (gv1, gv2):
+        B.via(v, "GND")
+    B.track([P(u1, 1), gv1, gv2], "GND", 0.6)
     for ca, cb in ((cin1, cin2), (cin2, cin3)):
         B.via(((P(ca, 2)[0] + P(cb, 2)[0]) / 2, P(ca, 2)[1]), "GND")
     island = [B.T(q) for q in (at(-2.4, -5.7), at(3.1, -5.7), at(3.1, 3.3), at(-2.4, 3.3))]
@@ -386,8 +390,10 @@ def place_power(L, first_led_site):
     d2 = C.add(DIODE_SCREEN, "D", (-3.25, -REG_R + 5.0), 180, nets={"1": "+5V_SCREEN", "2": "+5V"})
     C.track([C.p(d2, 1), C.p(j3, 1)], "+5V_SCREEN", 0.8)
     v5 = (C.p(d2, 2)[0] - 2.2, C.p(d2, 2)[1])      # clear of the star ring's track on the front
-    C.via(v5, "+5V")
-    C.track([C.p(d2, 2), v5], "+5V", 0.8)
+    v5b = (v5[0] - 1.0, v5[1])
+    for v in (v5, v5b):
+        C.via(v, "+5V")
+    C.track([C.p(d2, 2), v5, v5b], "+5V", 0.8)
 
     # LED data in from the servo board: 330 ohm, then up to LED 0 on the front.
     D = Block(L, J4_ALPHA)

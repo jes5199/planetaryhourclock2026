@@ -77,12 +77,16 @@ to the servo board, and to a TPS563201 buck (3 × 10 µF in, 4.7 µH, 3 × 22 µ
 up to 3 A) → 5 V for the LEDs and, through an SS14, the screen. EN is tied to VIN (both rated
 19 V). The regulator's GND pin and input capacitors drop through vias to a GND island on the
 front, right under the chip, so the input current loop is a few millimetres. The power path
-(jack → diode → J2) runs on copper pours. The pours use thermal-relief pad connections (even
-heating of the 0402 capacitors during reflow).
+(jack → diode → J2) runs on copper pours. Pad connections to the pours: thermal relief on the
+front (the LEDs and their 0402 capacitors, so both ends of each heat evenly during reflow), solid
+for every part on the back (the power parts need the copper for current and heat). U1's GND pin
+also has two vias straight down to the front island.
 
 Two things the hardware doesn't protect against, so the firmware must:
-- **Brightness.** 102 LEDs at full white draw ~3.7 A, more than the regulator's 3 A. Cap the
-  total in firmware (the dial only ever lights a few LEDs brightly).
+- **Brightness.** The XL-2020 LEDs draw up to 5 mA per colour, so all 102 at full white is about
+  1.5 A, inside the regulator's 3 A. A firmware cap is still sensible (the screen and heat share
+  the budget), and the dial only ever lights a few LEDs brightly. Check the colour order (GRB for
+  WS2812B) when the firmware first drives them.
 - The SS14 on the screen feed exists because the screen board's 5 V header pin **is its USB
   VBUS**: without it, plugging the screen board into a computer while the clock is powered would
   connect this board's 5 V to the computer's USB port, and a computer alone would try to power
@@ -104,16 +108,17 @@ first):
   converted with `kicad-cli fp upgrade`, pads set from XKB's drawing (rev A1, 2025-07-19). Its
   3D model doesn't show in KiCad's render.
 
-**Reviewed** (2026-11-18) by an independent agent against the datasheets: pinouts, the LED chain,
-the buck design, JLCPCB rules and the fit with the dial. Its findings are fixed above.
+**Reviewed** (2026-11-18) twice by an independent agent against the datasheets: pinouts, the LED
+chain, the buck design, JLCPCB rules and the fit with the dial. Its findings are fixed above.
 
 Before ordering:
 - Upload `out/leds-jlc/` to JLCPCB's quote page and check every part's rotation in the assembly
   preview: `jlc.sh` mirrors back-side angles (180° − angle), which is JLCPCB's usual convention
   but not guaranteed. Check the LEDs especially: data out (pad 1) should be at the corner
   marked on the package.
-- Check stock: the LEDs (C5349955), jack (C319134), inductor (C408410) and 1.25 mm header
-  (C481433) are extended parts with limited stock.
+- Check stock: the LEDs (C5349955, listed by LCSC as "XL-2020RGBC-2812B"; its datasheet says
+  XL-2020RGBC-WS2812B), jack (C319134), inductor (C408410) and 1.25 mm header (C481433) are
+  extended parts with limited stock.
 - A round board with parts near the edge may need JLCPCB's break-off rails for assembly.
 - The through-hole connector pins poke ~1.5 mm out of the front: the gap to the dial (and any
   baffle) has to clear them.
