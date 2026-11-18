@@ -288,7 +288,9 @@ J3_R = 10.0         # 5 V out to the screen: just above the centre hole, where i
 # LED data in: beside the servo board's RGB-LED header H1. With its servo ports, OLED and jacks
 # facing out (ESP32 side towards this board) and its DC jack towards J2, H1 is at its left end
 # (seen from the front), a side-entry header whose cable leaves over that edge.
-J4_AT = (SERVO_CENTRE[0] - SERVO_OUTLINE[0] / 2 - 4.0, SERVO_CENTRE[1])
+J4_CLEAR = 10.0     # gap from the servo board's edge to J4, courtyard included (its courtyard
+                    # reaches 2.43 mm from its centre towards the servo board)
+J4_AT = (SERVO_CENTRE[0] - SERVO_OUTLINE[0] / 2 - J4_CLEAR - 2.43, SERVO_CENTRE[1])
 DATA_R = 60.0       # the data line's run round to LED 0, between the star points and rim vias
 
 
