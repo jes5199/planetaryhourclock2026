@@ -42,6 +42,7 @@ SERVO_CENTRE = (0.0, 30.0)
 SERVO_HOLES = (58.0, 23.0)
 SERVO_OUTLINE = (65.0, 30.0)   # its board, drawn on the back silkscreen as a placement guide
 SERVO_HOLE_D = 2.7
+ANTENNA_HALF_W = 11.0          # copper keepout under its ESP32-WROOM's PCB antenna (18 mm wide)
 
 # JLCPCB / LCSC parts.
 # XINGLIGHT XL-2020RGBC-WS2812B: WS2812B protocol in a 2020 package (Worldsemi's own WS2812B-2020,
@@ -74,9 +75,10 @@ XH2 = ("Connector_JST", "JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical", "B2B-XH-A", "C1
 JACK = ("jlc", "DC-005-5A-2.0-SMT_C319134", "DC-005-5A-2.0-SMT", "C319134")
 JACK_ANGLE = 180.0    # the cord comes out of the bottom of the clock
 JACK_MOUTH = 8.05     # footprint origin to the jack's mouth, which sits on the board edge
-# LED data in: Molex PicoBlade (1.25 mm) 3-pin, surface mount, vertical; mates with the servo
-# board's RGB-LED header cable. Pins 1-3 plus two mounting tabs (MP).
-MX3 = ("Connector_Molex", "Molex_PicoBlade_53398-0371_1x03-1MP_P1.25mm_Vertical", "53398-0371", "C293633")
+# LED data in: 1.25 mm (MX1.25 / PicoBlade-style) 3-pin, surface mount, vertical; mates with the
+# servo board's RGB-LED header cable. HCTL HC-1.25-3PLT (Molex's own 53398-0371 had 6 in stock);
+# its JLCPCB footprint matches Molex's land pattern, which KiCad has. Pins 1-3 plus two tabs (MP).
+MX3 = ("Connector_Molex", "Molex_PicoBlade_53398-0371_1x03-1MP_P1.25mm_Vertical", "HC-1.25-3PLT", "C2845389")
 
 # LED pads: 1 DOUT, 2 GND, 3 DIN, 4 VDD.
 CAP_X = 2.8           # each LED's capacitor sits this far inward of it (clear of its courtyard)
@@ -97,11 +99,12 @@ class Layout:
 
     def add(self, spec, prefix, at, rot=0.0, back=False, nets=None, ref=None, silk=True, solid=None):
         lib, name, value, lcsc = spec
-        # Thermal relief on the front (LEDs and their 0402s) and for 0402s anywhere (both ends heat
-        # evenly in reflow); the power parts on the back join the pours solidly.
+        # Thermal relief on the front (LEDs and their 0402s), for 0402s anywhere (both ends heat
+        # evenly in reflow) and for the through-hole XH connectors (hand-soldered); the other
+        # power parts on the back join the pours solidly.
         p = Part(lib, name, ref or self.ref(prefix), value, at, rot, back,
                  {k: self.nets[v] for k, v in (nets or {}).items()}, lcsc, silk=silk,
-                 solid=(back and "0402" not in name) if solid is None else solid)
+                 solid=(back and "0402" not in name and "XH" not in name) if solid is None else solid)
         self.parts.append(p)
         return p
 
@@ -429,6 +432,11 @@ def place_power(L, first_led_site):
     p3 = D.p(j4, 3)
     r1 = D.add(R1K, "R", (p3[0], p3[1] - 5.75), 90, nets={"1": "LED_DATA_RAW", "2": "LED_DATA0"})
     D.track([p3, D.p(r1, 1)], "LED_DATA_RAW", 0.25)
+    # 100k pull-down at LED 0's side: holds DIN low when the servo board is off or unplugged,
+    # so the LEDs don't latch noise.
+    q2 = D.p(r1, 2)
+    rpd = D.add(R100K, "R", (q2[0] + 1.3, q2[1] - 0.5), 90, nets={"1": "LED_DATA0", "2": "GND"})
+    D.track([q2, (D.p(rpd, 1)[0], q2[1]), D.p(rpd, 1)], "LED_DATA0", DATA_W)
     s0 = first_led_site
     a_led = s0["angle"] % 360
     r_star = [x for x in dial.led_sites() if x["kind"] == "star"][0]["r"]
@@ -477,7 +485,7 @@ def silk(L, conns):
     x4 = j4.pad(2)[0]
     y4 = max(j4.pad("MP", i)[1] for i in range(2))
     s.append(back_label("LED DATA", 1.25, (x4 - 1.4, y4 + 3.2)))
-    s.append(back_label("top to bottom: DATA GND nc", 0.9, (x4 - 1.4, y4 + 5.0)))
+    s.append(back_label("top to bottom: DATA GND nc", 1.1, (x4 - 1.4, y4 + 5.2)))
     for key, text in (("j2", "12V SERVO"), ("j3", "5V SCREEN")):
         j, B = conns[key], blocks[key]
         p1 = B.p(j, 1)
@@ -539,6 +547,11 @@ def main():
     # the mask must not bridge the 5 V pour on one face to the GND pour on the other.
     for h in holes:
         board_keepout(b, disc(3.0, h))
+    # Nor under the servo board's ESP32 antenna (its radio talks to the screen board): with its
+    # ESP32 side facing this board, the antenna is at the top edge of its outline, mid-width.
+    from shapely.geometry import box
+    top = SERVO_CENTRE[1] - SERVO_OUTLINE[1] / 2
+    board_keepout(b, box(SERVO_CENTRE[0] - ANTENNA_HALF_W, top - 2.5, SERVO_CENTRE[0] + ANTENNA_HALF_W, top + 8.0))
     b.fill(silk(L, conns), "B.SilkS")
     # Pours: 5 V on the front, GND on the back, over the whole board (filled by KiCad).
     outline = disc(BOARD_R - 0.3)

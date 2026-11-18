@@ -16,8 +16,7 @@ OUT="$HERE/out/$stem-jlc"
 rm -rf "$OUT" && mkdir -p "$OUT/gerbers"
 "$K" pcb export gerbers --layers F.Cu,B.Cu,F.Paste,B.Paste,F.SilkS,B.SilkS,F.Mask,B.Mask,Edge.Cuts \
   --no-protel-ext --subtract-soldermask -o "$OUT/gerbers/" "$FILE" >/dev/null
-"$K" pcb export drill --format excellon --excellon-separate-th --generate-map --map-format gerberx2 \
-  -o "$OUT/gerbers/" "$FILE" >/dev/null
+"$K" pcb export drill --format excellon --excellon-separate-th -o "$OUT/gerbers/" "$FILE" >/dev/null
 (cd "$OUT/gerbers" && zip -q ../gerbers.zip ./*)
 PY=/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3
 (cd "$HERE" && .venv/bin/python jlc_ref.py "$(dirname "$FILE")/$stem-bom.csv" "$OUT/jlc_ref.json")

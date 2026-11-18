@@ -63,14 +63,16 @@ Copper: a 5 V pour plus the data tracks, and a small GND island under the regula
 servo board, currently in the lower half until the hand mechanism is designed (`SERVO_CENTRE`).
 No pour copper within 3 mm of any mounting hole on either face, so a standoff or screw head
 scratched through the mask can't bridge 5 V to GND. The DC jack, the protection FET, TVS, bulk capacitor, J2 and the regulator sit together at the bottom
-right, in the band between the star points and the rim LEDs; J3 and J4 are at the top left.
+right, in the band between the star points and the rim LEDs. J3 is just above the centre hole,
+J4 just past the servo board's left end (seen from the front). No pour copper under the servo
+board's ESP32 antenna (both faces), since its radio links it to the screen board.
 
 | Connector | Part | Pins | Goes to |
 | --- | --- | --- | --- |
 | J1 12V IN | SMD 5.5 × 2.1 mm DC jack, XKB DC-005-5A-2.0-SMT (C319134), rated 2.5 A (JLCPCB's data; the "5A" in the name is a series code) | centre +12 V, sleeve GND, switch GND | A regulated 12 V brick (2–3 A is plenty; a bigger one is fine, the jack limits what's drawn). At 6 o'clock, mouth flush with the board edge: the cord leaves the bottom of the clock |
-| J2 12V SERVO | JST XH 2-pin | 1 +12 V, 2 GND | The servo board's barrel jack (a short lead with a 5.5 × 2.1 mm plug) |
+| J2 12V SERVO | JST XH 2-pin | 1 +12 V, 2 GND | The servo board's barrel jack: a short (10–15 cm, ≥ 22 AWG) lead with a 5.5 × 2.1 mm plug, centre + on pin 1. Use a right-angle plug: a straight one reaches nearly to this board's edge |
 | J3 5V SCREEN | JST XH 2-pin, just above the centre hole | 1 +5 V (≈4.7 V, through the SS14), 2 GND | The screen board's 5 V pin (2×14 header J1 pin 4, GND pin 6), wires straight up the centre post |
-| J4 LED DATA | Molex PicoBlade 53398-0371 (C293633), 1.25 mm 3-pin, surface mount, vertical | 1 nc, 2 GND, 3 data | The servo board's RGB-LED header H1 (5 V, GND, LED-OUT): a straight 1:1 cable; its 5 V pin lands on nc. Placed 10 mm (courtyard to board edge) past the servo board's left end (seen from the front), where H1's side-entry cable leaves (`J4_CLEAR`), assuming the servo board mounts with its ports, OLED and jacks facing out and its DC jack towards J2. Buzz the cable out: H1's pin-1 end isn't marked |
+| J4 LED DATA | HCTL HC-1.25-3PLT (C2845389), 1.25 mm (MX1.25 / PicoBlade-style) 3-pin, surface mount, vertical, on Molex 53398-0371's land pattern (Molex's own part had 6 in stock) | 1 nc, 2 GND, 3 data | The servo board's RGB-LED header H1 (5 V, GND, LED-OUT): a straight 1:1 cable; its 5 V pin lands on nc. Placed 10 mm (courtyard to board edge) past the servo board's left end (seen from the front), where H1's side-entry cable leaves (`J4_CLEAR`), assuming the servo board mounts with its ports, OLED and jacks facing out and its DC jack towards J2. Buzz the cable out: H1's pin-1 end isn't marked. Check H1 is a 1.25 mm MX1.25/PicoBlade-style header (Waveshare calls it "XH1.25"); a JST GH cable would not mate |
 
 **Power.** 12 V in → Q1, an AO4407A P-channel MOSFET wired as an "ideal diode" for reverse-polarity
 protection (drain to the jack, source to the rail, gate to GND through 100k: 13 mΩ, so ~0.05 W at
@@ -105,7 +107,8 @@ Things the hardware doesn't protect against, so the firmware must:
 on-board LEDs come first, then here: rim LEDs 0–83 clockwise from the start of Sunday's slice
 (so chain index = the firmware's `dayRingLed`), then the 7 star points, the 7 star corners and the
 4 compass tips, each set clockwise. Jumps between sets go through the back. The input runs from
-J4 (through 1k) round the back, crosses to the front in the star ring's one gap (between star
+J4 (through 1k, with a 100k pull-down so LED 0's input doesn't float when the servo board is off)
+round the back, crosses to the front in the star ring's one gap (between star
 points 6 and 0, which the chain jumps through the back), and comes in to LED 0's DIN.
 
 **Parts not in KiCad's library** live in `footprints/jlc.pretty` (`kicadart.Part` looks there
@@ -130,7 +133,7 @@ its cathode end "2"; matching by number would have put it in backwards). A check
 finished CPL lands every pad on ours (within 0.03 mm for the LEDs, 0.2 mm for the regulator and
 diodes, where the two libraries' pads differ in size).
 
-**Reviewed** (2026-11-18) four times by independent agents against the datasheets: pinouts,
+**Reviewed** (2026-11-18) six times by independent agents against the datasheets: pinouts,
 the LED chain, the buck design, JLCPCB rules and stock, the CPL against JLCPCB's footprints, and
 the fit with the dial. Their findings are fixed above.
 
@@ -147,14 +150,16 @@ Before ordering:
   hang upside down through a second pass.
 - Check stock (2026-11-18): LEDs C5349955 ~80k (listed by LCSC as "XL-2020RGBC-2812B"; its
   datasheet says XL-2020RGBC-WS2812B), jack C319134 ~4.4k, inductor C408410 ~7k at JLCPCB (LCSC's
-  product page is broken; fallback Sunlord SWPA5040S4R7MT, C48496), 1.25 mm header C481433 ~0.9–1.5k,
-  JST XH C158012 ~1.9k, TPS563201 ~4.3k. All extended parts.
-- A round board with parts near the edge may need JLCPCB's break-off rails for assembly. The DC
-  jack sits flush with the edge at 6 o'clock (its corners overhang by ~0.1 mm): no rail there.
+  product page is broken; fallback Sunlord SWPA5040S4R7MT, C48496), 1.25 mm header C2845389 ~49k,
+  AO4407A C16072 ~9k, JST XH C158012 ~1.9k, TPS563201 ~4.3k. All extended parts.
+- A round board with parts near the edge may need JLCPCB's break-off rails for assembly. The rim
+  LEDs' pads are 0.93 mm from the edge all the way round, so ask for tabs placed between parts,
+  and none at 6 o'clock, where the DC jack sits flush (its corners overhang by ~0.1 mm).
 - The through-hole connector pins poke ~1.5 mm out of the front: the gap to the dial (and any
   baffle) has to clear them. J3 sits on the back just above the centre hole, where the hand tubes'
   gears will be: move it (`J3_R`) if the gear train needs that space.
-- Measure the servo board's hole spacing (58 × 23 mm from Waveshare's docs) with calipers.
+- Measure the servo board's hole spacing with calipers (58 × 23 mm, from Waveshare's dimension
+  drawing).
 - KiCad's DRC reports 0 errors and 0 unconnected; the only warnings are `lib_footprint_mismatch`,
   because the generator strips the hidden silkscreen from the library footprints.
 
