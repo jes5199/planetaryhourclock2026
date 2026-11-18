@@ -70,10 +70,10 @@ void cmdInfo(int id) {
                   bus.readByte(id, sts::kMinVoltage, &minV) && bus.readByte(id, sts::kMaxVoltage, &maxV) && bus.readByte(id, sts::kLock, &lock);
   if (!ok) return reply(false, "servo %d stopped answering", id);
   Serial.printf(
-      "{\"id\":%d,\"model\":%u,\"position\":%u,\"speed\":%d,\"load_pct\":%.1f,\"current_ma\":%.0f,"
+      "{\"id\":%d,\"model\":%u,\"position\":%d,\"speed\":%d,\"load_pct\":%.1f,\"current_ma\":%.0f,"
       "\"voltage\":%.1f,\"temperature_c\":%u,\"moving\":%u,\"mode\":%u,\"torque\":%u,"
       "\"angle_limits\":[%u,%u],\"voltage_limits\":[%.1f,%.1f],\"eeprom_locked\":%u,\"error\":%u}\n",
-      id, model, pos, sts::signedSpeed(speed), sts::signedLoad(load) / 10.0, current * 6.5, volt / 10.0,
+      id, model, sts::signedPosition(pos), sts::signedSpeed(speed), sts::signedLoad(load) / 10.0, current * 6.5, volt / 10.0,
       temp, moving, mode, torque, minA, maxA, minV / 10.0, maxV / 10.0, lock, bus.lastError());
   reply(true, "info %d", id);
 }
@@ -148,7 +148,7 @@ void cmdWatch(int id, int seconds) {
   while (millis() < end) {
     uint16_t pos;
     if (bus.readWord(id, sts::kPosition, &pos))
-      Serial.printf("position %u (%.1f deg)\n", pos, pos * 360.0 / sts::kStepsPerTurn);
+      Serial.printf("position %d (%.1f deg)\n", sts::signedPosition(pos), sts::signedPosition(pos) * 360.0 / sts::kStepsPerTurn);
     else
       Serial.println("no answer");
     delay(100);

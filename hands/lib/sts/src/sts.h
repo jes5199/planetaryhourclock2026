@@ -68,6 +68,8 @@ class Bus {
 };
 
 // Signed values: these registers keep the sign in a high bit instead of two's complement.
+// Position too, once the angle limits are off and it counts past one turn.
+inline int signedPosition(uint16_t raw) { return (raw & 0x8000) ? -int(raw & 0x7FFF) : int(raw); }
 inline int signedSpeed(uint16_t raw) { return (raw & 0x8000) ? -int(raw & 0x7FFF) : int(raw); }
 inline int signedLoad(uint16_t raw) { return (raw & 0x0400) ? -int(raw & 0x03FF) : int(raw); }
 
