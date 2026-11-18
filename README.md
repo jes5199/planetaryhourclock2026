@@ -19,7 +19,7 @@ The design, the dial and the maths are written up in the design doc,
 | Part | State |
 | --- | --- |
 | Centre screen | Working: clock face, setup by phone or touchscreen, settings saved in flash |
-| Hands | Servo board running our firmware; it finds and reads a servo. Driving the hands from the screen board is next. |
+| Hands | Servo board running our firmware; both servos turn freely past one revolution. Next: link it to the screen board over ESP-NOW (plan in [`hands/README.md`](hands/README.md#link-to-the-screen-board-planned-esp-now)). |
 | Dial PCB | Generated (KiCad 9), DRC clean; LED-window test coupon ready to order |
 | LED board | Not started |
 | Power | Not decided |

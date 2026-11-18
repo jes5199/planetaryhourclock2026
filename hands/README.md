@@ -67,6 +67,33 @@ Mode and limits live in the servo's EEPROM, which is locked against writes (regi
 makes the servo slow to reply, so EEPROM writes wait 30 ms, retry, and always re-lock; `info`
 shows `eeprom_locked`.
 
+## Link to the screen board (planned): ESP-NOW
+
+The screen board works out where the hands should point; this board moves them. The plan is to
+link the two with ESP-NOW (Espressif's direct radio messages between ESP32s: no router, no
+network, a few milliseconds, up to 250 bytes), so no cable runs between them.
+
+- **Messages:** the screen board sends both hands' target positions a few times a second. Every
+  message carries the full state, so a lost one costs nothing; the servo board holds the last
+  position if messages stop.
+- **Pairing, once per clock, like Bluetooth:** tap "Pair hands" on the screen board's setup screen
+  and press BOOT on the servo board (its OLED shows "pairing…"). The servo board broadcasts
+  "unpaired hands here" on each Wi-Fi channel in turn; the screen board answers; both save the
+  other's MAC address in flash and from then on talk only to each other, encrypted. Several clocks
+  in one room can't steer each other's hands.
+- **Channel:** ESP-NOW shares the radio with Wi-Fi, so both boards must be on the same channel.
+  When the screen board's setup hotspot is on, it picks the channel; the servo board finds its
+  paired screen board again by trying each channel.
+
+**Wired fallback:** the screen board's J10 connector (SH 1.0 4-pin: RX GPIO 44, TX GPIO 43, 3.3 V,
+GND) can join the servo bus directly. Wire RX and TX together, through 1 kΩ, to a servo port's
+DATA, plus GND; never connect the port's 6–12 V pin. The screen board then answers as a pretend
+servo (say ID 200) when this board polls it. DATA is 3.3 V logic (pulled up to 3.3 V on this board),
+but the servos' reply level isn't documented, hence the resistor.
+
+**Power, later:** this board's 3-pin XH 1.25 header (5 V, GND, LED data) could feed the screen
+board's USB_5V pin on its 2×14 header, so one brick runs the whole clock.
+
 ## Stock firmware
 
 Waveshare's demo firmware was backed up before this was flashed (see the top-level `CLAUDE.md`
