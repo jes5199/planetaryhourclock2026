@@ -46,6 +46,9 @@ small registration errors don't show bare edges.
   standoffs go *behind* the dial (to the LED board and frame), not in front. Their screw heads sit on the dial's face, inside the hands' sweep: the lowest hand must
   run at least 2.5 mm above the dial (an M2.5 pan head is ~2 mm tall; the 0.8 mm dial can't be
   countersunk). Decided 2026-11-18.
+- Balancing copper on the back: a 45° cross-hatch (0.4 mm lines, 3.2 mm pitch, ~31% copper against
+  the front's ~25%), under the back's black mask and clear of the windows, holes and edge. The
+  dial is held only near its centre, so a balanced board bows less at the rim (`BACK_HATCH`).
 - 102 pinholes, 0.5 mm non-plated (the usual fab minimum for NPTH; `PINHOLE_D` in `gen_dial.py`).
 - Silk glyphs are grown by 0.035 mm so Cormorant Garamond's hairlines survive silkscreen.
 - Order the coupon at 0.8 mm and 1.6 mm, light it from behind, and pick a window style (and a

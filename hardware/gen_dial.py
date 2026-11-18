@@ -50,6 +50,8 @@ MOUNT_R = 14.0              # their radius: clear of the centre hole, inside the
                             # and (on the LED board) clear of the servo board's top edge
 MOUNT_ANGLES = (45, 135, 225, 315)
 MOUNT_CLEAR = 0.4           # copper keep-back around a mounting hole
+BACK_HATCH = (0.4, 3.2)     # balancing copper on the back: 45° cross-hatch, line width and pitch (mm),
+                            # about the front's share of copper, so the thin dial stays flat
 PINHOLE_D = 0.5             # non-plated hole drilled through the middle of each window (fab minimum)
 GOLD_UNDER_MASK = 0.10      # copper extends this far under the mask past each gold edge
 SILK_THICKEN = 0.035        # grow silk glyphs (Cormorant's hairlines are fine for silkscreen)
@@ -214,7 +216,24 @@ def build():
     # White rose facets: numerals that cross them are knocked out (black) rather than lost.
     rose_white = unary_union(rose_white).difference(silk.buffer(0.15))
     silk = unary_union([silk, rose_white]).difference(mask_open.buffer(SILK_CLEAR)).intersection(inside)
-    return copper, mask_open, silk, windows, pinholes
+    # Balancing copper for the back (hidden under the black mask): a cross-hatch over the whole
+    # board, clear of the windows, holes and edge.
+    w, pitch = BACK_HATCH
+    from shapely.geometry import LineString
+    n = int(2 * BOARD_R / pitch) + 2
+    lines = []
+    for i in range(-n, n + 1):
+        c = i * pitch
+        lines.append(LineString([(c - BOARD_R, -BOARD_R), (c + BOARD_R, BOARD_R)]))
+        lines.append(LineString([(c + BOARD_R, -BOARD_R), (c - BOARD_R, BOARD_R)]))
+    back = unary_union(lines).buffer(w / 2, cap_style="flat").intersection(keep)
+    # Trim the sharp tips left where lines meet the round edge and the window cut-outs, and drop
+    # crumbs: fabs flag both as slivers.
+    back = back.buffer(-0.12, join_style="mitre").buffer(0.12, join_style="mitre")
+    from shapely.geometry import MultiPolygon
+    parts = back.geoms if hasattr(back, "geoms") else [back]
+    back = unary_union([p for p in parts if p.area > 0.4])
+    return copper, mask_open, silk, windows, pinholes, back
 
 
 def _tri(a, b, c):
@@ -223,12 +242,15 @@ def _tri(a, b, c):
 
 
 def main():
-    copper, mask_open, silk, windows, pinholes = build()
+    copper, mask_open, silk, windows, pinholes, back = build()
     board = Board()
     board.fill(copper, "F.Cu")
     board.fill(mask_open, "F.Mask")
     board.fill(silk, "F.SilkS")
     board.fill(windows, "B.Mask")       # the LEDs shine in from the back
+    board.fill(back, "B.Cu")            # balancing copper, under the back's black mask
+    area = disc(BOARD_R).area
+    print(f"copper: front {copper.area / area:.0%}, back {back.area / area:.0%} of the board")
     board.circle(BOARD_R, "Edge.Cuts")
     board.circle(CENTER_HOLE_D / 2, "Edge.Cuts")
     for i, a in enumerate(MOUNT_ANGLES):  # standoffs to the LED board / frame behind
