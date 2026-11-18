@@ -7,7 +7,6 @@ namespace {
 constexpr uint8_t kPing = 0x01;
 constexpr uint8_t kRead = 0x02;
 constexpr uint8_t kWrite = 0x03;
-constexpr uint32_t kReplyTimeoutUs = 3000;
 
 }  // namespace
 
@@ -46,7 +45,7 @@ bool Bus::transact(uint8_t id, uint8_t instr, const uint8_t* params, uint8_t n, 
   size_t got = 0;
   const uint32_t start = micros();
   const size_t want = 6 + replyLen;
-  while (micros() - start < kReplyTimeoutUs && got < sizeof buf) {
+  while (micros() - start < timeoutUs_ && got < sizeof buf) {
     while (port_->available() && got < sizeof buf) buf[got++] = port_->read();
     size_t from = (got >= pktLen && memcmp(buf, pkt, pktLen) == 0) ? pktLen : 0;
     for (size_t i = from; i + want <= got; ++i) {

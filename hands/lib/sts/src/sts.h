@@ -54,6 +54,9 @@ class Bus {
   // Move to `position` (0-4095) at `speed` steps/s with acceleration `acc` (units of 100 steps/s^2).
   bool moveTo(uint8_t id, int16_t position, uint16_t speed, uint8_t acc = 50);
 
+  // How long to wait for a reply. Servos answer within ~1 ms, except while saving EEPROM.
+  void setTimeoutUs(uint32_t us) { timeoutUs_ = us; }
+
   uint8_t lastError() const { return lastError_; }  // the servo's error byte from its last reply
 
  private:
@@ -61,6 +64,7 @@ class Bus {
                 uint8_t replyLen);
   HardwareSerial* port_ = nullptr;
   uint8_t lastError_ = 0;
+  uint32_t timeoutUs_ = 3000;
 };
 
 // Signed values: these registers keep the sign in a high bit instead of two's complement.
