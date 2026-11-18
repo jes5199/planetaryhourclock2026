@@ -25,8 +25,8 @@ from shapely import affinity
 from shapely.ops import unary_union
 
 import gen_dial as dial
-from kicadart import (Board, Font, Nets, Part, board_track, board_via, board_zone, disc, polar,
-                      rot_kicad)
+from kicadart import (Board, Font, Nets, Part, board_keepout, board_track, board_via, board_zone, disc,
+                      polar, rot_kicad)
 
 HERE = pathlib.Path(__file__).resolve().parent
 OUT = HERE / "leds" / "leds.kicad_pcb"
@@ -89,11 +89,11 @@ class Layout:
 
     def add(self, spec, prefix, at, rot=0.0, back=False, nets=None, ref=None, silk=True, solid=None):
         lib, name, value, lcsc = spec
-        # Thermal relief only on the front (LEDs and their 0402s); the power parts on the back
-        # join the pours solidly, for current and heat.
+        # Thermal relief on the front (LEDs and their 0402s) and for 0402s anywhere (both ends heat
+        # evenly in reflow); the power parts on the back join the pours solidly.
         p = Part(lib, name, ref or self.ref(prefix), value, at, rot, back,
                  {k: self.nets[v] for k, v in (nets or {}).items()}, lcsc, silk=silk,
-                 solid=back if solid is None else solid)
+                 solid=(back and "0402" not in name) if solid is None else solid)
         self.parts.append(p)
         return p
 
@@ -181,7 +181,7 @@ def place_leds(L):
         din = "LED_DATA0" if n == 0 else f"LED_D{n}"
         dout = f"LED_D{n + 1}" if n + 1 < len(chain) else "LED_END"
         led = L.add(LED, "D", polar(s["r"], s["angle"]), rot,
-                    nets={DOUT: dout, GND_PAD: "GND", DIN: din, VDD: "+5V"}, silk=False)
+                    nets={DOUT: dout, GND_PAD: "GND", DIN: din, VDD: "+5V"})   # keeps its pin-1 tick
         # Its capacitor: inward, beside VDD; its GND end goes through a via to the back pour.
         cap = L.add(C100N, "C", local(s, CAP_X, -LED_PY), rot, nets={"1": "+5V", "2": "GND"}, silk=False)
         from shapely.geometry import Point
@@ -350,7 +350,7 @@ def place_power(L, first_led_site):
     # The DC jack (J1) at the bottom edge, then J2 (12 V out to the servo board) and the
     # reverse-polarity diode just anticlockwise of it, on the side where its centre pin lands.
     jat, jrot = jack_placement()
-    j1 = L.add(JACK, "J", jat, jrot, back=True, nets={"1": "+12V_IN", "2": "GND"}, silk=False)
+    j1 = L.add(JACK, "J", jat, jrot, back=True, nets={"1": "+12V_IN", "2": "GND", "3": "GND"}, silk=False)
     L.track([j1.pad("1", 0), j1.pad("1", 1)], "+12V_IN", 1.0, "B.Cu")  # its two pin-1 pads
     bus_world = B.T(bus_end)
     r_bus = math.dist(bus_world, (0, 0))
@@ -421,7 +421,7 @@ def back_label(text, size, at, rot=0.0):
     g = label_font.text(text, size, size * 0.08)
     g = affinity.scale(g, -1, 1, origin=(0, 0))
     g = affinity.rotate(g, rot, origin=(0, 0))
-    return affinity.translate(g, *at).buffer(0.04)
+    return affinity.translate(g, *at).buffer(0.06)   # Cormorant's hairlines up to silkscreen width
 
 
 def upright(alpha):
@@ -434,7 +434,7 @@ def silk(L, conns):
     blocks = conns["blocks"]
     jb = blocks["j1"]
     s.append(back_label("12V IN", 1.25, jb.T((0, -BOARD_R + 18.3)), upright(JACK_ANGLE)))
-    s.append(back_label("12V  ≥3A  5.5×2.1  centre +", 0.9, jb.T((0, -BOARD_R + 16.5)), upright(JACK_ANGLE)))
+    s.append(back_label("12V  ≥3A  5.5×2.1  centre +", 1.1, jb.T((0, -BOARD_R + 16.5)), upright(JACK_ANGLE)))
     for key, text in (("j2", "12V SERVO"), ("j3", "5V SCREEN"), ("j4", "LED DATA")):
         j, B = conns[key], blocks[key]
         p1 = B.p(j, 1)
@@ -444,7 +444,7 @@ def silk(L, conns):
         if key != "j4":
             s.append(back_label("+", 1.8, B.T((p1[0], p1[1] - 4.2)), upright(B.alpha)))
         else:
-            s.append(back_label("DATA  GND  nc", 0.9, B.T(((p1[0] + p2[0]) / 2, p1[1] + 3.6)), upright(B.alpha)))
+            s.append(back_label("DATA  GND  nc", 1.1, B.T(((p1[0] + p2[0]) / 2, p1[1] + 3.6)), upright(B.alpha)))
     s.append(back_label("PLANETARY HOURS CLOCK", 2.2, (0, -25.5)))
     s.append(back_label("LED BOARD", 2.2, (0, -22.5)))
     sx, sy = SERVO_CENTRE
@@ -490,8 +490,14 @@ def main():
         b.hole(dial.MOUNT_D, polar(dial.MOUNT_R, a), ref=f"H{i + 1}")
     sx, sy = SERVO_CENTRE
     hx, hy = SERVO_HOLES
+    holes = [polar(dial.MOUNT_R, a) for a in dial.MOUNT_ANGLES]
     for i, (dx, dy) in enumerate(((-1, -1), (1, -1), (-1, 1), (1, 1))):
         b.hole(SERVO_HOLE_D, (sx + dx * hx / 2, sy + dy * hy / 2), ref=f"H{5 + i}")
+        holes.append((sx + dx * hx / 2, sy + dy * hy / 2))
+    # No pour copper where standoffs, nuts and screw heads sit: a metal standoff scratched through
+    # the mask must not bridge the 5 V pour on one face to the GND pour on the other.
+    for h in holes:
+        board_keepout(b, disc(3.0, h))
     b.fill(silk(L, conns), "B.SilkS")
     # Pours: 5 V on the front, GND on the back, over the whole board (filled by KiCad).
     outline = disc(BOARD_R - 0.3)

@@ -48,7 +48,9 @@ render (look at the PNG). The dial's geometry comes from mockup N (`RingLeds.dc.
 "Planetary Hours Dial" design canvas, at 23/102 mm per SVG unit. The LED board (`gen_leds.py`)
 places real library footprints with nets; after generating it, run `hardware/fill_zones.sh` (KiCad's
 zone filler through KiCad's bundled Python), then `render.sh` (DRC must show 0 unconnected; the
-`lib_footprint_mismatch` warnings are expected), then `jlc.sh` for JLCPCB's Gerbers, BOM and CPL. The user's other repos
+`lib_footprint_mismatch` warnings are expected), then `jlc.sh` for JLCPCB's Gerbers, BOM and CPL. The CPL is corrected to JLCPCB's own
+footprints (`jlc_ref.py` fetches them with easyeda2kicad; check its table for parts whose pads don't
+match, and add an override when JLCPCB's pad numbers don't follow the part's polarity marks). The user's other repos
 (jes5199/astrolabium, jes5199/clockwork) generate KiCad source the same way.
 
 ## Talking to the clock over serial

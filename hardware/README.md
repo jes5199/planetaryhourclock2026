@@ -61,7 +61,8 @@ Copper: a 5 V pour plus the data tracks, and a small GND island under the regula
 
 **Back**: the power hub and connectors, a GND pour, and four M2.5 holes (58 × 23 mm) for the
 servo board, currently in the lower half until the hand mechanism is designed (`SERVO_CENTRE`).
-The DC jack, the diode, TVS, bulk capacitor, J2 and the regulator sit together at the bottom
+No pour copper within 3 mm of any mounting hole on either face, so a standoff or screw head
+scratched through the mask can't bridge 5 V to GND. The DC jack, the diode, TVS, bulk capacitor, J2 and the regulator sit together at the bottom
 right, in the band between the star points and the rim LEDs; J3 and J4 are at the top left.
 
 | Connector | Part | Pins | Goes to |
@@ -108,16 +109,31 @@ first):
   converted with `kicad-cli fp upgrade`, pads set from XKB's drawing (rev A1, 2025-07-19). Its
   3D model doesn't show in KiCad's render.
 
-**Reviewed** (2026-11-18) twice by an independent agent against the datasheets: pinouts, the LED
-chain, the buck design, JLCPCB rules and the fit with the dial. Its findings are fixed above.
+**Placement file.** JLCPCB places its *own* library footprint for each part, and those often
+differ from KiCad's: the LEDs and the regulator have pin 1 in the opposite corner (180°), and
+connectors are centred where KiCad puts pin 1 at the origin. `jlc_ref.py` downloads JLCPCB's
+footprint for every LCSC part (easyeda2kicad, cached in `out/jlc-ref/`), matches its pads to ours,
+and records the turn and offset; `cpl.py` (KiCad's Python) writes the CPL from the board with those
+corrections. One override: JLCPCB's SS54 footprint numbers its cathode end "2", so it is matched
+by its cathode band instead of by pad number. A check that places JLCPCB's footprints by the
+finished CPL lands every pad on ours (within 0.03 mm for the LEDs, 0.2 mm for the regulator and
+diodes, where the two libraries' pads differ in size).
+
+**Reviewed** (2026-11-18) three times by independent agents against the datasheets: pinouts,
+the LED chain, the buck design, JLCPCB rules and stock, the CPL against JLCPCB's footprints, and
+the fit with the dial. Their findings are fixed above.
 
 Before ordering:
-- Upload `out/leds-jlc/` to JLCPCB's quote page and check every part's rotation in the assembly
-  preview: `jlc.sh` mirrors back-side angles (180° − angle), which is JLCPCB's usual convention
-  but not guaranteed. Check the LEDs especially: data out (pad 1) should be at the corner
-  marked on the package.
+- Upload `out/leds-jlc/` to JLCPCB's quote page and check every part in the assembly preview.
+  The CPL is corrected to JLCPCB's footprints, but the back side relies on their usual mirrored
+  convention (180° − angle). Check especially: the LEDs (data out at the package's marked
+  corner, which is the silk tick), U1's pin-1 dot, the SS54 and SMAJ13A cathode bands towards
+  the +12 V side, C111's + at the J2 side, and J2/J3's latches.
+- Ask JLCPCB to bake the LEDs (MSL 5) and to reflow the LED side last: a two-sided build heats
+  them twice, and they are rated 260 °C for 6 s.
 - Check stock: the LEDs (C5349955, listed by LCSC as "XL-2020RGBC-2812B"; its datasheet says
-  XL-2020RGBC-WS2812B), jack (C319134), inductor (C408410) and 1.25 mm header (C481433) are
+  XL-2020RGBC-WS2812B), jack (C319134), inductor (C408410: LCSC's product page is broken but
+  JLCPCB lists 459; fallback Sunlord SWPA5040S4R7MT, C48496) and 1.25 mm header (C481433) are
   extended parts with limited stock.
 - A round board with parts near the edge may need JLCPCB's break-off rails for assembly.
 - The through-hole connector pins poke ~1.5 mm out of the front: the gap to the dial (and any
@@ -139,6 +155,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 ./fill_zones.sh leds/leds.kicad_pcb   # fill the copper pours (KiCad's own filler, via its Python)
 ./render.sh leds/leds.kicad_pcb
 ./jlc.sh leds/leds.kicad_pcb      # -> out/leds-jlc/: gerbers.zip, bom.csv, cpl.csv for JLCPCB
+                                  #    (CPL corrected to JLCPCB's footprints: jlc_ref.py + cpl.py)
 ```
 
 Boards with parts (`gen_leds.py`) place KiCad's own library footprints (read from the KiCad app),

@@ -486,6 +486,16 @@ def board_via(board, at, net, d=0.6, drill=0.3):
         f'(layers "F.Cu" "B.Cu") (net {net[0]}) (uuid "{uuid.uuid4()}"))\n')
 
 
+def board_keepout(board, outline):
+    """A rule area on both copper layers where copper pours may not go (tracks may)."""
+    pts = " ".join(f"(xy {x + board.cx:.4f} {y + board.cy:.4f})" for x, y in list(outline.exterior.coords)[:-1])
+    board.items.append(
+        f'\t(zone (net 0) (net_name "") (layers "F.Cu" "B.Cu") (uuid "{uuid.uuid4()}") (hatch edge 0.5) '
+        f'(connect_pads (clearance 0)) (min_thickness 0.25) (filled_areas_thickness no) '
+        f'(keepout (tracks allowed) (vias allowed) (pads allowed) (copperpour not_allowed) (footprints allowed)) '
+        f'(fill (thermal_gap 0.5) (thermal_bridge_width 0.5)) (polygon (pts {pts})))\n')
+
+
 def board_zone(board, outline, layer, net, clearance=0.25, min_width=0.2, priority=0, thermal=True):
     """A copper pour over `outline` (a Shapely polygon); fill it with fill_zones.py."""
     pts = " ".join(f"(xy {x + board.cx:.4f} {y + board.cy:.4f})" for x, y in list(outline.exterior.coords)[:-1])
