@@ -36,6 +36,7 @@ The command list prints at boot, followed by a scan of the servo bus.
 | `torque <id> on\|off` | Hold position, or go limp so the servo can be turned by hand |
 | `watch <id> [seconds]` | Print the position ten times a second |
 | `mode <id> 0\|1\|3` | 0 position (one turn), 1 wheel, 3 step (relative moves). Saved in the servo. |
+| `setid <id> <new>` | Give a servo a new ID (1–253). Saved in the servo. |
 | `limits <id> <min> <max>` | Angle limits, 0–4095 (factory 0 4095); `0 0` removes them. Saved in the servo. |
 | `turn <id> <turns> [speed]` | Step mode only: rotate by whole or fractional turns, + or −, up to about 8 |
 
@@ -43,7 +44,12 @@ The command list prints at boot, followed by a scan of the servo bus.
 
 The servo port is on GPIO 18 (RX) and 19 (TX) at 1 Mbaud, half-duplex. `lib/sts` speaks the
 Feetech STS packet protocol: `FF FF id len instr params… checksum`, little-endian registers. New
-STS3215s all ship as ID 1, so the second servo has to be given a new ID before both share the bus.
+STS3215s all ship as ID 1, so each servo was connected alone and given its own ID:
+
+| ID | Servo | Settings |
+| --- | --- | --- |
+| 1 | first servo | step mode, no angle limits |
+| 2 | second servo (was ID 1; changed with `setid 1 2`) | step mode, no angle limits |
 
 ## Going round more than once
 

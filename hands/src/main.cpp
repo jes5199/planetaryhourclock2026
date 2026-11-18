@@ -27,6 +27,8 @@ const char kHelp[] =
     "  watch <id> [seconds]      print the position 10 times a second (default 5 s)\n"
     "  mode <id> 0|1|3           0 position (one turn, 0-4095), 1 wheel, 3 step (relative moves);\n"
     "                            saved in the servo\n"
+    "  setid <id> <new>          give a servo a new ID (1-253); saved in the servo. New STS3215s are\n"
+    "                            all ID 1, so connect one at a time\n"
     "  limits <id> <min> <max>   angle limits, 0-4095 (factory 0 4095); 0 0 removes them, which\n"
     "                            step mode needs to go past one turn; saved in the servo\n"
     "  turn <id> <turns> [speed] step mode only: rotate by whole or fractional turns (+ or -, up to\n"
@@ -107,6 +109,23 @@ void cmdMode(int id, int mode) {
   reply(true, "servo %d in mode %d", id, mode);
 }
 
+void cmdSetId(int id, int newId) {
+  if (newId < 1 || newId > 253) return reply(false, "new ID must be 1-253");
+  if (bus.ping(newId)) return reply(false, "ID %d is already taken on this bus", newId);
+  if (!bus.ping(id)) return reply(false, "servo %d did not answer", id);
+  // After the ID write the servo answers to its new ID, so the lock goes back on there.
+  bus.setTimeoutUs(30000);
+  auto retry = [](auto f) { for (int i = 0; i < 3; ++i) if (f()) return true; return false; };
+  const bool unlocked = retry([&] { return bus.writeByte(id, sts::kLock, 0); });
+  if (unlocked) bus.writeByte(id, sts::kId, newId);  // the reply may come from either ID; check below
+  delay(50);
+  const bool moved = bus.ping(newId);
+  const bool locked = retry([&] { return bus.writeByte(moved ? newId : id, sts::kLock, 1); });
+  bus.setTimeoutUs(3000);
+  if (!moved) return reply(false, "servo %d did not take the new ID", id);
+  reply(locked, "servo %d is now ID %d%s", id, newId, locked ? "" : " (but its EEPROM did not re-lock)");
+}
+
 void cmdLimits(int id, int lo, int hi) {
   if (lo < 0 || hi > 4095 || lo > hi) return reply(false, "limits must be 0 <= min <= max <= 4095");
   const uint8_t b[4] = {uint8_t(lo & 0xFF), uint8_t(lo >> 8), uint8_t(hi & 0xFF), uint8_t(hi >> 8)};
@@ -156,6 +175,8 @@ void handle(char* line) {
     cmdTorque(a1, !strcmp(argv[2], "on"));
   } else if (!strcmp(cmd, "mode") && argc == 3) {
     cmdMode(a1, atoi(argv[2]));
+  } else if (!strcmp(cmd, "setid") && argc == 3) {
+    cmdSetId(a1, atoi(argv[2]));
   } else if (!strcmp(cmd, "limits") && argc == 4) {
     cmdLimits(a1, atoi(argv[2]), atoi(argv[3]));
   } else if (!strcmp(cmd, "turn") && argc >= 3) {

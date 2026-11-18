@@ -15,7 +15,7 @@ README updated in the same commit as any feature change. Commit and push after e
   back corrupted; 115200 works. Its firmware is `hands/` (`cd hands; pio run -t upload --upload-port
   /dev/cu.usbserial-0001`), with a serial console like the screen board's: `scan`, `info <id>`,
   `move <id> <pos>`, `mode`, `limits`, `turn`. Resetting it from pyserial: `s.dtr=False; s.rts=True;
-  s.rts=False`. Servo 1 is in step mode with its angle limits removed (see `hands/README.md`). Waveshare's stock firmware is backed up in `backups/` (git-ignored,
+  s.rts=False`. Servos are IDs 1 and 2, both in step mode with their angle limits removed (see `hands/README.md`). Waveshare's stock firmware is backed up in `backups/` (git-ignored,
   full 4 MB image, verified apart from the nvs partition, which the stock firmware rewrites at
   boot). Restore with `esptool.py --port /dev/cu.usbserial-0001 write-flash 0 backups/servo-driver-stock-*.bin`
   (esptool is `~/.platformio/packages/tool-esptoolpy/esptool.py`, run with the penv python).
