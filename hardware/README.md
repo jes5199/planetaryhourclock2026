@@ -62,11 +62,12 @@ Copper: a 5 V pour plus the data tracks, and a small GND island under the regula
 **Back**: the power hub and connectors, a GND pour, and four M2.5 holes (58 × 23 mm) for the
 servo board, currently in the lower half until the hand mechanism is designed (`SERVO_CENTRE`).
 No pour copper within 3 mm of any mounting hole on either face, and no track or via within
-3.3 mm of one (the generator bends tracks around them), so screw heads and standoffs sit on bare
-mask. The dial's standoffs are at 14 mm radius, 2.7 mm clear of the servo board's top edge.
-No pour copper within 3 mm of any mounting hole on either face, so a standoff or screw head
-scratched through the mask can't bridge 5 V to GND. The DC jack, the protection FET, TVS, bulk capacitor, J2 and the regulator sit together at the bottom
-right, in the band between the star points and the rim LEDs. J3 is just above the centre hole,
+3.3 mm of one (the generator bends tracks around them), so a screw head or standoff scratched
+through the mask can't short anything. The dial's standoffs are at 14 mm radius, 2.7 mm clear of
+the servo board's top edge.
+
+The DC jack, the protection FET, TVS, bulk capacitor, J2 and the regulator sit together at the
+bottom right, in the band between the star points and the rim LEDs. J3 is just above the centre hole,
 J4 just past the servo board's left end (seen from the front). No pour copper under the servo
 board's ESP32 antenna (both faces), since its radio links it to the screen board.
 
