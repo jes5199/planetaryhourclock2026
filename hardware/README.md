@@ -53,46 +53,73 @@ small registration errors don't show bare edges.
 
 Same outline, centre hole and standoff holes as the dial, sitting a few millimetres behind it.
 It takes the LED positions from `gen_dial.led_sites()`, so a window and its LED can't drift
-apart. Assembled by JLCPCB on **both sides**; 1.6 mm, so it can carry the servo board.
+apart. Assembled by JLCPCB on **both sides**; 1.6 mm, black mask, ENIG (gold) finish, so it can
+carry the servo board.
 
-**Front** (facing the dial): only the 102 WS2812B-2020 LEDs and a 100 nF capacitor each, so it
-stays flat. Copper: a 5 V pour plus the data tracks.
+**Front** (facing the dial): only the 102 LEDs and a 100 nF capacitor each, so it stays flat.
+Copper: a 5 V pour plus the data tracks, and a small GND island under the regulator.
 
 **Back**: the power hub and connectors, a GND pour, and four M2.5 holes (58 × 23 mm) for the
 servo board, currently in the lower half until the hand mechanism is designed (`SERVO_CENTRE`).
-The DC jack, the diode, J2 and the regulator sit together at the bottom right, in the band
-between the star points and the rim LEDs; J3 and J4 are at the top left.
-
-The DC jack's footprint isn't in KiCad's library: it was imported from JLCPCB's part data with
-easyeda2kicad (in the venv: `.venv/bin/easyeda2kicad --footprint --3d --lcsc_id C319134 --output
-footprints/jlc`), converted with `kicad-cli fp upgrade`, and its pads set from XKB's drawing (rev
-A1, 2025-07-19). It lives in `footprints/jlc.pretty`; `kicadart.Part` looks there before KiCad's
-library. Its 3D model doesn't show in KiCad's render. Only 262 were in stock when chosen.
+The DC jack, the diode, TVS, bulk capacitor, J2 and the regulator sit together at the bottom
+right, in the band between the star points and the rim LEDs; J3 and J4 are at the top left.
 
 | Connector | Part | Pins | Goes to |
 | --- | --- | --- | --- |
 | J1 12V IN | SMD 5.5 × 2.1 mm DC jack, XKB DC-005-5A-2.0-SMT (C319134) | centre +12 V, sleeve GND | The 12 V ≥ 3 A brick. At 6 o'clock, mouth flush with the board edge: the cord leaves the bottom of the clock |
 | J2 12V SERVO | JST XH 2-pin | 1 +12 V, 2 GND | The servo board's barrel jack (a short lead with a 5.5 × 2.1 mm plug) |
-| J3 5V SCREEN | JST XH 2-pin | 1 +5 V, 2 GND | The screen board's 5 V pin (2×14 header J1 pin 4, GND pin 6), wires up the centre post |
+| J3 5V SCREEN | JST XH 2-pin | 1 +5 V (≈4.7 V, through D105), 2 GND | The screen board's 5 V pin (2×14 header J1 pin 4, GND pin 6), wires up the centre post |
 | J4 LED DATA | 1.25 mm 3-pin | 1 nc, 2 GND, 3 data | The servo board's RGB-LED header (5 V, GND, LED-OUT): a straight 1:1 cable; its 5 V pin lands on nc |
 
-Power: 12 V in → SS54 diode (reverse-polarity protection) → 12 V to the servo board and to a
-TPS563201 buck (4.7 µH, 2 × 22 µF, 56k/10k divider: 5.07 V, up to 3 A) → 5 V for the LEDs and the
-screen. EN is tied to VIN (both rated 19 V). The servo board's own regulator never carries LED
-current, and its 5 V pin is not connected to this board's 5 V.
+**Power.** 12 V in → SS54 (reverse-polarity protection) → a 13 V TVS (SMAJ13A) and 100 µF bulk
+capacitor, so plugging in a live brick can't ring the rail past the regulator's 19 V limit → 12 V
+to the servo board, and to a TPS563201 buck (3 × 10 µF in, 4.7 µH, 3 × 22 µF out, 56k/10k: 5.07 V,
+up to 3 A) → 5 V for the LEDs and, through an SS14, the screen. EN is tied to VIN (both rated
+19 V). The regulator's GND pin and input capacitors drop through vias to a GND island on the
+front, right under the chip, so the input current loop is a few millimetres. The power path
+(jack → diode → J2) runs on copper pours. The pours use thermal-relief pad connections (even
+heating of the 0402 capacitors during reflow).
+
+Two things the hardware doesn't protect against, so the firmware must:
+- **Brightness.** 102 LEDs at full white draw ~3.7 A, more than the regulator's 3 A. Cap the
+  total in firmware (the dial only ever lights a few LEDs brightly).
+- The SS14 on the screen feed exists because the screen board's 5 V header pin **is its USB
+  VBUS**: without it, plugging the screen board into a computer while the clock is powered would
+  connect this board's 5 V to the computer's USB port, and a computer alone would try to power
+  the LEDs.
 
 **Data chain** (written to `leds/led-chain.csv` with each LED's angle): the servo board's two
 on-board LEDs come first, then here: rim LEDs 0–83 clockwise from the start of Sunday's slice
 (so chain index = the firmware's `dayRingLed`), then the 7 star points, the 7 star corners and the
 4 compass tips, each set clockwise. Jumps between sets go through the back.
 
+**Parts not in KiCad's library** live in `footprints/jlc.pretty` (`kicadart.Part` looks there
+first):
+- The LEDs: XINGLIGHT XL-2020RGBC-WS2812B (C5349955), a WS2812B-protocol LED in the 2020 package,
+  because Worldsemi's own WS2812B-2020 (C965555) was out of stock. Footprint drawn from its
+  datasheet's recommended pattern and numbered like KiCad's WS2812B-2020 (1 DO, 2 GND, 3 DI,
+  4 VDD), which is its datasheet top view turned 180°.
+- The DC jack: imported from JLCPCB's part data with easyeda2kicad (in the venv:
+  `.venv/bin/easyeda2kicad --footprint --3d --lcsc_id C319134 --output footprints/jlc`),
+  converted with `kicad-cli fp upgrade`, pads set from XKB's drawing (rev A1, 2025-07-19). Its
+  3D model doesn't show in KiCad's render.
+
+**Reviewed** (2026-11-18) by an independent agent against the datasheets: pinouts, the LED chain,
+the buck design, JLCPCB rules and the fit with the dial. Its findings are fixed above.
+
 Before ordering:
-- Check part rotations in JLCPCB's assembly preview (KiCad and JLCPCB disagree on some
-  footprints' zero angle), especially the LEDs' pin-1 corner, the TSOT-23-6 and the diode.
+- Upload `out/leds-jlc/` to JLCPCB's quote page and check every part's rotation in the assembly
+  preview: `jlc.sh` mirrors back-side angles (180° − angle), which is JLCPCB's usual convention
+  but not guaranteed. Check the LEDs especially: data out (pad 1) should be at the corner
+  marked on the package.
+- Check stock: the LEDs (C5349955), jack (C319134), inductor (C408410) and 1.25 mm header
+  (C481433) are extended parts with limited stock.
+- A round board with parts near the edge may need JLCPCB's break-off rails for assembly.
 - The through-hole connector pins poke ~1.5 mm out of the front: the gap to the dial (and any
   baffle) has to clear them.
-- KiCad's DRC reports 0 errors; the only warnings are `lib_footprint_mismatch`, because the
-  generator strips the hidden silkscreen from the library footprints.
+- Measure the servo board's hole spacing (58 × 23 mm from Waveshare's docs) with calipers.
+- KiCad's DRC reports 0 errors and 0 unconnected; the only warnings are `lib_footprint_mismatch`,
+  because the generator strips the hidden silkscreen from the library footprints.
 
 ## Build
 

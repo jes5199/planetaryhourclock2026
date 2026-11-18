@@ -3,6 +3,8 @@
 #   out/<board>-jlc/gerbers.zip   Gerbers and drill files
 #   out/<board>-jlc/bom.csv       Comment, Designator, Footprint, LCSC Part #   (from the generator)
 #   out/<board>-jlc/cpl.csv       Designator, Mid X, Mid Y, Layer, Rotation      (from KiCad's positions)
+# Bottom-side rotations are mirrored (180 - angle), the convention JLCPCB expects and the
+# kicad-jlcpcb-tools plugin uses. Always check the rotations in JLCPCB's assembly preview.
 # Usage: hardware/jlc.sh hardware/leds/leds.kicad_pcb
 set -eu
 K=/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli
@@ -24,8 +26,10 @@ with open(src) as f, open(dst, "w", newline="") as g:
     w = csv.writer(g)
     w.writerow(["Designator", "Mid X", "Mid Y", "Layer", "Rotation"])
     for row in csv.DictReader(f):
+        top = row["Side"] == "top"
+        rot = float(row["Rot"]) if top else 180 - float(row["Rot"])
         w.writerow([row["Ref"], f'{float(row["PosX"]):.4f}mm', f'{float(row["PosY"]):.4f}mm',
-                    "Top" if row["Side"] == "top" else "Bottom", f'{float(row["Rot"]) % 360:.2f}'])
+                    "Top" if top else "Bottom", f'{rot % 360:.2f}'])
 PY
 rm "$OUT/pos.csv"
 cp "$(dirname "$FILE")/$stem-bom.csv" "$OUT/bom.csv"

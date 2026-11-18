@@ -44,8 +44,14 @@ SERVO_OUTLINE = (65.0, 30.0)   # its board, drawn on the back silkscreen as a pl
 SERVO_HOLE_D = 2.7
 
 # JLCPCB / LCSC parts.
-LED = ("LED_SMD", "LED_WS2812B-2020_PLCC4_2.0x2.0mm", "WS2812B-2020", "C965555")
+# XINGLIGHT XL-2020RGBC-WS2812B: WS2812B protocol in a 2020 package (Worldsemi's own WS2812B-2020,
+# C965555, was out of stock). Footprint from its datasheet, numbered like KiCad's WS2812B-2020.
+LED = ("jlc", "LED_XL-2020RGBC-WS2812B_C5349955", "XL-2020RGBC-WS2812B", "C5349955")
+LED_PX, LED_PY = 0.675, 0.625   # its pad centres: +-x across the LED (radial here), +-y along it
+LED_VIA_Y = 1.6                 # vias beside its pads, clear of them
 C100N = ("Capacitor_SMD", "C_0402_1005Metric", "100nF", "C1525")
+C100N_50V = ("Capacitor_SMD", "C_0402_1005Metric", "100nF 50V", "C307331")
+C100U = ("Capacitor_SMD", "CP_Elec_6.3x7.7", "100uF 35V", "C2836437")
 C10U = ("Capacitor_SMD", "C_0805_2012Metric", "10uF 25V", "C15850")
 C22U = ("Capacitor_SMD", "C_0805_2012Metric", "22uF 25V", "C45783")
 R56K = ("Resistor_SMD", "R_0402_1005Metric", "56k", "C25796")
@@ -55,6 +61,8 @@ R330 = ("Resistor_SMD", "R_0402_1005Metric", "330", "C25104")
 BUCK = ("Package_TO_SOT_SMD", "TSOT-23-6", "TPS563201DDCR", "C116592")
 IND = ("Inductor_SMD", "L_Sunlord_MWSA0503S", "4.7uH MWSA0503S", "C408410")
 DIODE = ("Diode_SMD", "D_SMA", "SS54", "C22452")
+DIODE_SCREEN = ("Diode_SMD", "D_SMA", "SS14", "C2480")
+TVS = ("Diode_SMD", "D_SMA", "SMAJ13A", "C148214")
 XH2 = ("Connector_JST", "JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical", "B2B-XH-A", "C158012")
 # SMD 5.5 x 2.1 mm DC jack, footprint imported from JLCPCB with easyeda2kicad (footprints/jlc.pretty)
 # and checked against XKB's drawing. Pin 1 centre (+), 2 sleeve (GND), 3 switch (unused).
@@ -63,7 +71,7 @@ JACK_ANGLE = 180.0    # the cord comes out of the bottom of the clock
 JACK_MOUTH = 8.05     # footprint origin to the jack's mouth, which sits on the board edge
 MX3 = ("Connector_Molex", "Molex_PicoBlade_53047-0310_1x03_P1.25mm_Vertical", "1.25mm 3P", "C481433")
 
-# WS2812B-2020 pads: 1 DOUT, 2 GND, 3 DIN, 4 VDD.
+# LED pads: 1 DOUT, 2 GND, 3 DIN, 4 VDD.
 CAP_X = 2.8           # each LED's capacitor sits this far inward of it (clear of its courtyard)
 DOUT, GND_PAD, DIN, VDD = "1", "2", "3", "4"
 
@@ -172,20 +180,20 @@ def place_leds(L):
         led = L.add(LED, "D", polar(s["r"], s["angle"]), rot,
                     nets={DOUT: dout, GND_PAD: "GND", DIN: din, VDD: "+5V"}, silk=False)
         # Its capacitor: inward, beside VDD; its GND end goes through a via to the back pour.
-        cap = L.add(C100N, "C", local(s, CAP_X, -0.55), rot, nets={"1": "+5V", "2": "GND"}, silk=False)
+        cap = L.add(C100N, "C", local(s, CAP_X, -LED_PY), rot, nets={"1": "+5V", "2": "GND"}, silk=False)
         from shapely.geometry import Point
         for dx in (0.9, 1.4, 1.9, 2.4):          # inward, clear of the DC jack's pads on the back
-            gvia = local(s, CAP_X + dx, -0.55)
+            gvia = local(s, CAP_X + dx, -LED_PY)
             if not keepout.contains(Point(gvia)):
                 break
         L.via(gvia, "GND")
         L.track([cap.pad(2), gvia], "GND")
         # The LED's GND pad: a via just anticlockwise of it, outside the data path.
-        lvia = local(s, -0.915, 1.45)
+        lvia = local(s, -LED_PX, LED_VIA_Y)
         L.via(lvia, "GND")
         L.track([led.pad(GND_PAD), lvia], "GND")
         if n == 0:  # data comes in from the back through a via beside DIN
-            L.track([local(s, 0.915, 1.45), led.pad(DIN)], din)
+            L.track([local(s, LED_PX, LED_VIA_Y), led.pad(DIN)], din)
         leds.append((s, led, din, dout))
 
     jumps = []
@@ -194,9 +202,9 @@ def place_leds(L):
         if s["kind"] == s2["kind"]:
             # Same ring: leave DOUT clockwise on the outer row, cross to the inner row, and come
             # into the next LED's DIN from its anticlockwise side.
-            a = local(s, -0.915, -1.5)
-            b = local(s, 0.915, -2.4)
-            c = local(s2, 0.915, 2.0)
+            a = local(s, -LED_PX, -1.5)
+            b = local(s, LED_PX, -2.4)
+            c = local(s2, LED_PX, 2.0)
             pts = [led.pad(DOUT), a, b]
             rb = math.dist(b, (0, 0))
             ab = math.degrees(math.atan2(b[0], -b[1]))
@@ -207,8 +215,8 @@ def place_leds(L):
             L.track(pts, dout)
         else:
             # Between sets: through the back, via-to-via.
-            v_out = local(s, -0.915, -1.45)
-            v_in = local(s2, 0.915, 1.45)
+            v_out = local(s, -LED_PX, -LED_VIA_Y)
+            v_in = local(s2, LED_PX, LED_VIA_Y)
             L.track([led.pad(DOUT), v_out], dout)
             L.via(v_out, dout)
             L.via(v_in, dout)
@@ -219,7 +227,7 @@ def place_leds(L):
             r_mid = ((s["r"] - CAP_X - 1.0) + (s2["r"] + 1.3)) / 2
             a_out = math.degrees(math.atan2(v_out[0], -v_out[1]))
             a_tgt = s2["angle"] - math.degrees(3.0 / r_mid)
-            w2 = local(s2, 0.915, 3.0)
+            w2 = local(s2, LED_PX, 3.0)
             if s["r"] - CAP_X - 1.2 - r_mid < 0.6:
                 # Rings too close to pass inside the source's capacitor via: go round the
                 # outside of the source LED and come down on its anticlockwise side instead.
@@ -281,22 +289,26 @@ def place_power(L, first_led_site):
 
     # EN is tied straight to VIN (both rated 19 V), as the datasheet allows.
     u1 = B.add(BUCK, "U", at(0, 0), 0, nets={"1": "GND", "2": "SW", "3": "+12V", "4": "FB", "5": "+12V", "6": "VBST"})
+    # Three input capacitors (10 uF 0805s keep only ~half their value at 12 V).
     cin1 = B.add(C10U, "C", at(-1.2, -3.9), 90, nets={"1": "+12V", "2": "GND"})
-    cin2 = B.add(C10U, "C", at(1.1, -3.9), 90, nets={"1": "+12V", "2": "GND"})
-    cbyp = B.add(C100N, "C", at(2.9, -3.43), 90, nets={"1": "+12V", "2": "GND"})
+    cin2 = B.add(C10U, "C", at(1.3, -3.9), 90, nets={"1": "+12V", "2": "GND"})
+    cin3 = B.add(C10U, "C", at(3.8, -3.9), 90, nets={"1": "+12V", "2": "GND"})
+    cbyp = B.add(C100N_50V, "C", at(5.4, -3.43), 90, nets={"1": "+12V", "2": "GND"})
     cbst = B.add(C100N, "C", at(0.2, 2.5), 0, nets={"1": "SW", "2": "VBST"})
     l1 = B.add(IND, "L", at(-5.3, 0), 180, nets={"1": "SW", "2": "+5V"})
-    co1 = B.add(C22U, "C", at(-10.5, -1.4), 180, nets={"1": "+5V", "2": "GND"})
-    co2 = B.add(C22U, "C", at(-10.5, 1.4), 180, nets={"1": "+5V", "2": "GND"})
+    # Three output capacitors (22 uF 0805s keep ~half at 5 V; TI asks for 20-68 uF).
+    co1 = B.add(C22U, "C", at(-10.5, -2.6), 180, nets={"1": "+5V", "2": "GND"})
+    co2 = B.add(C22U, "C", at(-10.5, 0.0), 180, nets={"1": "+5V", "2": "GND"})
+    co3 = B.add(C22U, "C", at(-10.5, 2.6), 180, nets={"1": "+5V", "2": "GND"})
     rtop = B.add(R56K, "R", at(3.0, -0.95), 0, nets={"1": "FB", "2": "+5V"})
-    rbot = B.add(R10K, "R", at(3.0, -1.95), 0, nets={"1": "FB", "2": "GND"})
+    rbot = B.add(R10K, "R", at(3.0, 0.1), 0, nets={"1": "FB", "2": "GND"})
 
     P = B.p
     bus_y = P(cin1, 1)[1]
     bus_end = at(6.5, 0)[0], bus_y
     # 12 V bus across the input capacitors, VIN up to it, EN under the chip to VIN.
-    B.track([P(cin1, 1), bus_end], "+12V", 0.6)
-    B.track([P(u1, 3), (P(u1, 3)[0], bus_y)], "+12V", 0.5)
+    B.track([P(cin1, 1), bus_end], "+12V", 0.8)
+    B.track([P(u1, 3), (P(u1, 3)[0], bus_y)], "+12V", 0.6)
     x5, y5 = P(u1, 5)
     x3, y3 = P(u1, 3)
     B.track([P(u1, 5), (x5 - 0.6625, y5), (x3 + 0.6625, y3), P(u1, 3)], "+12V", 0.25)
@@ -307,18 +319,26 @@ def place_power(L, first_led_site):
     B.track([P(u1, 2), (xc - 0.3, y2), (xc, y2 + 0.45), (xc, P(cbst, 1)[1] - 0.5), P(cbst, 1)], "SW", 0.25)
     x6, y6 = P(u1, 6)
     B.track([P(u1, 6), (x6, P(cbst, 2)[1]), P(cbst, 2)], "VBST", 0.3)
+    # Ground: U1's GND pin and the input capacitors' GND ends drop through vias to a GND
+    # island on the front, directly under the chip, closing the input loop in a few mm.
+    x1, y1 = P(u1, 1)
+    gv1 = (x1 - 0.46, y1 + 0.95)
+    B.via(gv1, "GND")
+    B.track([P(u1, 1), gv1], "GND", 0.4)
+    for ca, cb in ((cin1, cin2), (cin2, cin3)):
+        B.via(((P(ca, 2)[0] + P(cb, 2)[0]) / 2, P(ca, 2)[1]), "GND")
+    island = [B.T(q) for q in (at(-2.4, -5.7), at(3.1, -5.7), at(3.1, 3.3), at(-2.4, 3.3))]
     # 5 V out, with vias up to the front pour.
     x5v = P(co1, 1)[0]
-    B.track([P(l1, 2), (x5v, P(l1, 2)[1])], "+5V", POWER_W)
-    B.track([P(co1, 1), P(co2, 1)], "+5V", POWER_W)
-    for v in ((x5v, P(co1, 1)[1] - 1.35), (x5v, P(co2, 1)[1] + 1.35), (x5v + 0.65, P(l1, 2)[1])):
-        B.via(v, "+5V")
-    B.track([P(co1, 1), (x5v, P(co1, 1)[1] - 1.35)], "+5V", 0.6)
-    B.track([P(co2, 1), (x5v, P(co2, 1)[1] + 1.35)], "+5V", 0.6)
+    B.track([P(l1, 2), P(co2, 1)], "+5V", POWER_W)
+    B.track([P(co1, 1), P(co3, 1)], "+5V", POWER_W)
+    yc1, yc2, yc3 = P(co1, 1)[1], P(co2, 1)[1], P(co3, 1)[1]
+    for y in ((yc1 + yc2) / 2, (yc2 + yc3) / 2, yc1 - 1.35, yc3 + 1.35):
+        B.via((x5v, y), "+5V")
+    B.track([(x5v, yc1 - 1.35), (x5v, yc3 + 1.35)], "+5V", 0.6)
     # Feedback divider; its top end goes to the 5 V pour through a via.
-    xf = P(u1, 4)[0] + 0.86
     B.track([P(u1, 4), P(rtop, 1)], "FB", 0.25)
-    B.track([(xf, P(rtop, 1)[1]), (xf, P(rbot, 1)[1]), P(rbot, 1)], "FB", 0.25)
+    B.track([P(rtop, 1), P(rbot, 1)], "FB", 0.25)
     vtop = (P(rtop, 2)[0] + 0.84, P(rtop, 2)[1])
     B.via(vtop, "+5V")
     B.track([P(rtop, 2), vtop], "+5V", 0.3)
@@ -335,24 +355,44 @@ def place_power(L, first_led_site):
     j2 = A.add(XH2, "J", (oa[0] - 9.0, oa[1]), 0, nets={"1": "+12V", "2": "GND"})
     d1 = A.add(DIODE, "D", oa, 0, nets={"1": "+12V", "2": "+12V_IN"})
     jack_pin1 = min((j1.pad("1", i) for i in range(2)), key=lambda q: math.dist(q, d1.pad(2)))
-    L.track([d1.pad(2), jack_pin1], "+12V_IN", 1.0, "B.Cu")
+    L.track([d1.pad(2), jack_pin1], "+12V_IN", 2.0, "B.Cu")
     jx, jy = A.p(j2, 1)
     kx, ky = A.p(d1, 1)
-    A.track([A.p(j2, 1), (jx, jy + 2.3), (kx, jy + 2.3), A.p(d1, 1)], "+12V", POWER_W)
+    A.track([A.p(j2, 1), (jx, jy + 2.3), (kx, jy + 2.3), A.p(d1, 1)], "+12V", 1.5)
+    # Behind the diode: a 13 V TVS and 100 uF of bulk capacitance, so plugging in a live brick
+    # can't ring the 12 V rail up past U1's 19 V limit.
+    tvs = A.add(TVS, "D", (oa[0] + 0.8, oa[1] + 5.0), 0, nets={"1": "+12V", "2": "GND"})
+    cbulk = A.add(C100U, "C", (oa[0] - 8.0, oa[1] + 7.6), 0, nets={"1": "+12V", "2": "GND"})
+    A.track([A.p(tvs, 1), (A.p(tvs, 1)[0], jy + 2.3), (kx, jy + 2.3)], "+12V", 1.0)
+    A.track([(jx, jy + 2.3), (jx, A.p(cbulk, 1)[1]), A.p(cbulk, 1)], "+12V", 1.0)
+    # Copper pours on the power path, for current and to spread the diode's heat.
+    from shapely.geometry import Polygon
+    # They stay inward of the rim capacitors' GND vias (y > -1.4 here: some are nudged inward
+    # near the jack) and clear of J2's GND pin,
+    # which reach GND only through the back pour.
+    zin = Polygon([A.T((oa[0] + x, oa[1] + y)) for x, y in ((0.9, -1.4), (9.5, -1.4), (9.5, 3.6), (0.9, 3.6))])
+    z12 = Polygon([A.T((oa[0] + x, oa[1] + y)) for x, y in
+                   ((-11.0, 1.3), (-3.6, 1.3), (-3.6, -2.0), (-0.6, -2.0), (-0.6, 3.9), (-11.0, 3.9))])
     # The bus follows the arc from the regulator to J2.
     a0 = math.degrees(math.atan2(bus_world[0], -bus_world[1]))
     j2w = j2.pad(1)
     a1 = math.degrees(math.atan2(j2w[0], -j2w[1]))
     L.track([bus_world] + arc_points(r_bus, a0, a1, step=1.0)[1:-1] + [j2w], "+12V", 0.6, "B.Cu")
 
-    # 5 V to the screen board: its pin 1 meets the front 5 V pour, pin 2 the back GND pour.
+    # 5 V to the screen board, through a Schottky: the screen board's 5 V pin is its USB VBUS,
+    # so without it this board and a computer on that USB port would feed each other.
     C = Block(L, J3_ALPHA)
-    j3 = C.add(XH2, "J", (-1.25, -REG_R), 0, nets={"1": "+5V", "2": "GND"})
+    j3 = C.add(XH2, "J", (-1.25, -REG_R), 0, nets={"1": "+5V_SCREEN", "2": "GND"})
+    d2 = C.add(DIODE_SCREEN, "D", (-3.25, -REG_R + 5.0), 180, nets={"1": "+5V_SCREEN", "2": "+5V"})
+    C.track([C.p(d2, 1), C.p(j3, 1)], "+5V_SCREEN", 0.8)
+    v5 = (C.p(d2, 2)[0] - 2.2, C.p(d2, 2)[1])      # clear of the star ring's track on the front
+    C.via(v5, "+5V")
+    C.track([C.p(d2, 2), v5], "+5V", 0.8)
 
     # LED data in from the servo board: 330 ohm, then up to LED 0 on the front.
     D = Block(L, J4_ALPHA)
     j4 = D.add(MX3, "J", (-1.25, -REG_R), 0, nets={"2": "GND", "3": "LED_DATA_RAW"})
-    v_in = local(first_led_site, 0.915, 1.45)
+    v_in = local(first_led_site, LED_PX, LED_VIA_Y)
     r1 = D.add(R330, "R", (-1.5, -REG_R - 3.6), 180, nets={"1": "LED_DATA_RAW", "2": "LED_DATA0"})
     D.track([D.p(j4, 3), (D.p(j4, 3)[0], D.p(r1, 1)[1] + 0.9), (D.p(r1, 1)[0], D.p(r1, 1)[1] + 0.9), D.p(r1, 1)],
             "LED_DATA_RAW", 0.25)
@@ -360,7 +400,8 @@ def place_power(L, first_led_site):
     r_r1 = math.dist(r1.pad(2), (0, 0))
     L.track([r1.pad(2), polar(r_r1, a_in), v_in], "LED_DATA0", DATA_W, "B.Cu")
     L.via(v_in, "LED_DATA0")
-    return dict(j1=j1, j2=j2, j3=j3, j4=j4, blocks=dict(j1=Block(L, JACK_ANGLE), j2=A, j3=C, j4=D))
+    return dict(j1=j1, j2=j2, j3=j3, j4=j4, blocks=dict(j1=Block(L, JACK_ANGLE), j2=A, j3=C, j4=D),
+                zones=dict(gnd_island=island, in12=zin, v12=z12))
 
 
 # ---- back silkscreen ----------------------------------------------------------------------------
@@ -392,12 +433,12 @@ def silk(L, conns):
         j, B = conns[key], blocks[key]
         p1 = B.p(j, 1)
         p2 = B.p(j, 2 if key != "j4" else 3)
-        mid = ((p1[0] + p2[0]) / 2, p1[1] + 6.2)          # inward of the connector
+        mid = ((p1[0] + p2[0]) / 2, p1[1] + {"j2": -6.4, "j3": 9.6}.get(key, 6.2))   # beside it
         s.append(back_label(text, 1.25, B.T(mid), upright(B.alpha)))
         if key != "j4":
             s.append(back_label("+", 1.8, B.T((p1[0], p1[1] - 4.2)), upright(B.alpha)))
         else:
-            s.append(back_label("nc  GND  DATA", 0.9, B.T(((p1[0] + p2[0]) / 2, p1[1] + 3.6)), upright(B.alpha)))
+            s.append(back_label("DATA  GND  nc", 0.9, B.T(((p1[0] + p2[0]) / 2, p1[1] + 3.6)), upright(B.alpha)))
     s.append(back_label("PLANETARY HOURS CLOCK", 2.2, (0, -25.5)))
     s.append(back_label("LED BOARD", 2.2, (0, -22.5)))
     sx, sy = SERVO_CENTRE
@@ -450,6 +491,12 @@ def main():
     outline = disc(BOARD_R - 0.3)
     board_zone(b, outline, "F.Cu", L.nets["+5V"])
     board_zone(b, outline, "B.Cu", L.nets["GND"])
+    # Local pours that take priority: GND under the regulator (front), and the 12 V path (back).
+    from shapely.geometry import Polygon
+    z = conns["zones"]
+    board_zone(b, Polygon(z["gnd_island"]), "F.Cu", L.nets["GND"], priority=1)
+    board_zone(b, z["in12"], "B.Cu", L.nets["+12V_IN"], priority=1, thermal=False)
+    board_zone(b, z["v12"], "B.Cu", L.nets["+12V"], priority=1, thermal=False)
 
     OUT.parent.mkdir(exist_ok=True)
     write_with_nets(b, L.nets, OUT, core_mm=1.51)
@@ -468,6 +515,7 @@ def write_with_nets(board, nets, path, core_mm):
     text = pathlib.Path(path).read_text()
     text = text.replace('\t(net 0 "")\n', nets.sexprs(), 1)
     text = text.replace("(thickness 0.71)", f"(thickness {core_mm})", 1)
+    text = text.replace("(general\n\t\t(thickness 0.8)", "(general\n\t\t(thickness 1.6)", 1)
     pathlib.Path(path).write_text(text)
 
 

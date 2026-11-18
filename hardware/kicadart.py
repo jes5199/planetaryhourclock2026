@@ -482,11 +482,11 @@ def board_via(board, at, net, d=0.6, drill=0.3):
         f'(layers "F.Cu" "B.Cu") (net {net[0]}) (uuid "{uuid.uuid4()}"))\n')
 
 
-def board_zone(board, outline, layer, net, clearance=0.25, min_width=0.2, priority=0):
+def board_zone(board, outline, layer, net, clearance=0.25, min_width=0.2, priority=0, thermal=True):
     """A copper pour over `outline` (a Shapely polygon); fill it with fill_zones.py."""
     pts = " ".join(f"(xy {x + board.cx:.4f} {y + board.cy:.4f})" for x, y in list(outline.exterior.coords)[:-1])
     board.items.append(
         f'\t(zone (net {net[0]}) (net_name "{net[1]}") (layer "{layer}") (uuid "{uuid.uuid4()}") '
-        f'(hatch edge 0.5) (priority {priority}) (connect_pads yes (clearance {clearance})) (min_thickness {min_width}) '
+        f'(hatch edge 0.5) (priority {priority}) (connect_pads {"" if thermal else "yes "}(clearance {clearance})) (min_thickness {min_width}) '
         f'(filled_areas_thickness no) (fill yes (thermal_gap 0.5) (thermal_bridge_width 0.5) (island_removal_mode 0)) '
         f'(polygon (pts {pts})))\n')
