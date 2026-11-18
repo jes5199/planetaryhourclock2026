@@ -38,7 +38,7 @@ VIA = dict(d=0.6, drill=0.3)
 
 # The servo board (Waveshare Servo Driver with ESP32) mounts on the back on M2.5 standoffs:
 # its holes are 58 x 23 mm apart. Placeholder spot in the lower half until the mechanism exists.
-SERVO_CENTRE = (0.0, 30.0)
+SERVO_CENTRE = (0.0, 30.5)
 SERVO_HOLES = (58.0, 23.0)
 SERVO_OUTLINE = (65.0, 30.0)   # its board, drawn on the back silkscreen as a placement guide
 SERVO_HOLE_D = 2.7
@@ -77,13 +77,54 @@ JACK_ANGLE = 180.0    # the cord comes out of the bottom of the clock
 JACK_MOUTH = 8.05     # footprint origin to the jack's mouth, which sits on the board edge
 # LED data in: 1.25 mm (MX1.25 / PicoBlade-style) 3-pin, surface mount, vertical; mates with the
 # servo board's RGB-LED header cable. HCTL HC-1.25-3PLT (Molex's own 53398-0371 had 6 in stock);
-# its JLCPCB footprint matches Molex's land pattern, which KiCad has. Pins 1-3 plus two tabs (MP).
-MX3 = ("Connector_Molex", "Molex_PicoBlade_53398-0371_1x03-1MP_P1.25mm_Vertical", "HC-1.25-3PLT", "C2845389")
+# its land pattern is Molex's (KiCad's footprint) with the signal pads lengthened to HCTL's
+# recommended 1.6 mm. Pins 1-3 plus two tabs (MP).
+MX3 = ("jlc", "HC-1.25-3PLT_C2845389", "HC-1.25-3PLT", "C2845389")
 
 # LED pads: 1 DOUT, 2 GND, 3 DIN, 4 VDD.
 CAP_X = 2.8           # each LED's capacitor sits this far inward of it (clear of its courtyard)
 CAP_VIA = 1.4         # and its GND via this far beyond it: the hole clear of the 0402's pad
 DOUT, GND_PAD, DIN, VDD = "1", "2", "3", "4"
+
+
+HOLE_AVOID = 3.3      # tracks stay this far from a mounting hole's centre: outside an M2.5 screw
+                      # head or standoff (2.5-2.9 mm), so a scratched mask can't short them to it
+
+
+def mount_holes():
+    """Centres of every mounting hole: the dial's standoffs and the servo board's."""
+    sx, sy = SERVO_CENTRE
+    hx, hy = SERVO_HOLES
+    return ([polar(dial.MOUNT_R, a) for a in dial.MOUNT_ANGLES] +
+            [(sx + dx * hx / 2, sy + dy * hy / 2) for dx, dy in ((-1, -1), (1, -1), (-1, 1), (1, 1))])
+
+
+def avoid_holes(pts, holes=None):
+    """Bend a track around the mounting holes: segments that pass too close are cut into short
+    steps, and each step point inside HOLE_AVOID is pushed straight out from the hole."""
+    holes = holes or mount_holes()
+
+    def seg_dist(h, a, b):
+        ax, ay = a; bx, by = b
+        L2 = (bx - ax) ** 2 + (by - ay) ** 2
+        t = 0 if L2 == 0 else max(0, min(1, ((h[0] - ax) * (bx - ax) + (h[1] - ay) * (by - ay)) / L2))
+        return math.dist(h, (ax + t * (bx - ax), ay + t * (by - ay)))
+
+    out = [pts[0]]
+    for a, b in zip(pts, pts[1:]):
+        if all(seg_dist(h, a, b) >= HOLE_AVOID for h in holes):
+            out.append(b)
+            continue
+        n = max(2, int(math.dist(a, b) / 0.3))
+        for i in range(1, n + 1):
+            p = (a[0] + (b[0] - a[0]) * i / n, a[1] + (b[1] - a[1]) * i / n)
+            for h in holes:
+                d = math.dist(p, h)
+                if 0 < d < HOLE_AVOID + 0.05:
+                    k = (HOLE_AVOID + 0.05) / d
+                    p = (h[0] + (p[0] - h[0]) * k, h[1] + (p[1] - h[1]) * k)
+            out.append(p)
+    return out
 
 
 class Layout:
@@ -109,7 +150,7 @@ class Layout:
         return p
 
     def track(self, pts, net, width=DATA_W, layer="F.Cu"):
-        board_track(self.board, pts, width, layer, self.nets[net])
+        board_track(self.board, avoid_holes(pts), width, layer, self.nets[net])
 
     def via(self, at, net):
         board_via(self.board, at, self.nets[net], **VIA)
@@ -561,8 +602,8 @@ def main():
     from shapely.geometry import Polygon
     z = conns["zones"]
     board_zone(b, Polygon(z["gnd_island"]), "F.Cu", L.nets["GND"], priority=1)
-    board_zone(b, z["in12"], "B.Cu", L.nets["+12V_IN"], priority=1, thermal=False)
-    board_zone(b, z["v12"], "B.Cu", L.nets["+12V"], priority=1, thermal=False)
+    board_zone(b, z["in12"], "B.Cu", L.nets["+12V_IN"], priority=1)
+    board_zone(b, z["v12"], "B.Cu", L.nets["+12V"], priority=1)   # relief for J2 (hand-soldered); SMD pads override to solid
 
     OUT.parent.mkdir(exist_ok=True)
     write_with_nets(b, L.nets, OUT, core_mm=1.51)

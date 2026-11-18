@@ -41,7 +41,7 @@ small registration errors don't show bare edges.
   wall): a fixed 5/32" post that holds the screen and carries its 5 V and GND wires, the gold
   hand's 3/16" tube on it, and the hour hand's 7/32" tube (5.56 mm) outside that. Nothing else
   can hold the screen up: the hands sweep the whole gap between the dial and the screen.
-- Four M2.5 standoff holes (2.7 mm, non-plated) at 17 mm radius on the diagonals, inside the
+- Four M2.5 standoff holes (2.7 mm, non-plated) at 14 mm radius on the diagonals, inside the
   46 mm screen's shadow so they never show. The hands sweep between the dial and the screen, so
   standoffs go *behind* the dial (to the LED board and frame), not in front.
 - 102 pinholes, 0.5 mm non-plated (the usual fab minimum for NPTH; `PINHOLE_D` in `gen_dial.py`).
@@ -61,6 +61,9 @@ Copper: a 5 V pour plus the data tracks, and a small GND island under the regula
 
 **Back**: the power hub and connectors, a GND pour, and four M2.5 holes (58 × 23 mm) for the
 servo board, currently in the lower half until the hand mechanism is designed (`SERVO_CENTRE`).
+No pour copper within 3 mm of any mounting hole on either face, and no track or via within
+3.3 mm of one (the generator bends tracks around them), so screw heads and standoffs sit on bare
+mask. The dial's standoffs are at 14 mm radius, 2.7 mm clear of the servo board's top edge.
 No pour copper within 3 mm of any mounting hole on either face, so a standoff or screw head
 scratched through the mask can't bridge 5 V to GND. The DC jack, the protection FET, TVS, bulk capacitor, J2 and the regulator sit together at the bottom
 right, in the band between the star points and the rim LEDs. J3 is just above the centre hole,
@@ -151,7 +154,7 @@ Before ordering:
 - Check stock (2026-11-18): LEDs C5349955 ~80k (listed by LCSC as "XL-2020RGBC-2812B"; its
   datasheet says XL-2020RGBC-WS2812B), jack C319134 ~4.4k, inductor C408410 ~7k at JLCPCB (LCSC's
   product page is broken; fallback Sunlord SWPA5040S4R7MT, C48496), 1.25 mm header C2845389 ~49k,
-  AO4407A C16072 ~9k, JST XH C158012 ~1.9k, TPS563201 ~4.3k. All extended parts.
+  AO4407A C16072 ~9k, JST XH C158012 ~474k, TPS563201 ~4.3k. All extended parts.
 - A round board with parts near the edge may need JLCPCB's break-off rails for assembly. The rim
   LEDs' pads are 0.93 mm from the edge all the way round, so ask for tabs placed between parts,
   and none at 6 o'clock, where the DC jack sits flush (its corners overhang by ~0.1 mm).

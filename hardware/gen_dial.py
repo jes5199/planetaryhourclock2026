@@ -46,7 +46,8 @@ WINDOW_D = {"rim": 2.0, "star": 1.6, "corner": 2.2, "compass": 2.2}  # LED windo
 WINDOW_CLEAR = 0.2          # copper keep-back around a window
 SCREEN_R = U(102)           # 23 mm: the AMOLED floats in front and hides everything inside this
 MOUNT_D = 2.7               # standoff holes (M2.5 clearance), hidden behind the screen
-MOUNT_R = 17.0              # their radius: clear of the centre hole, inside the screen with room for a nut
+MOUNT_R = 14.0              # their radius: clear of the centre hole, inside the screen with room for a nut,
+                            # and (on the LED board) clear of the servo board's top edge
 MOUNT_ANGLES = (45, 135, 225, 315)
 MOUNT_CLEAR = 0.4           # copper keep-back around a mounting hole
 PINHOLE_D = 0.5             # non-plated hole drilled through the middle of each window (fab minimum)
