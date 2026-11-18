@@ -60,10 +60,18 @@ stays flat. Copper: a 5 V pour plus the data tracks.
 
 **Back**: the power hub and connectors, a GND pour, and four M2.5 holes (58 × 23 mm) for the
 servo board, currently in the lower half until the hand mechanism is designed (`SERVO_CENTRE`).
+The DC jack, the diode, J2 and the regulator sit together at the bottom right, in the band
+between the star points and the rim LEDs; J3 and J4 are at the top left.
+
+The DC jack's footprint isn't in KiCad's library: it was imported from JLCPCB's part data with
+easyeda2kicad (in the venv: `.venv/bin/easyeda2kicad --footprint --3d --lcsc_id C319134 --output
+footprints/jlc`), converted with `kicad-cli fp upgrade`, and its pads set from XKB's drawing (rev
+A1, 2025-07-19). It lives in `footprints/jlc.pretty`; `kicadart.Part` looks there before KiCad's
+library. Its 3D model doesn't show in KiCad's render. Only 262 were in stock when chosen.
 
 | Connector | Part | Pins | Goes to |
 | --- | --- | --- | --- |
-| J1 12V IN | JST XH 2-pin | 1 +12 V, 2 GND | A panel-mount 5.5 × 2.1 mm jack on the case (12 V ≥ 3 A brick) |
+| J1 12V IN | SMD 5.5 × 2.1 mm DC jack, XKB DC-005-5A-2.0-SMT (C319134) | centre +12 V, sleeve GND | The 12 V ≥ 3 A brick. At 6 o'clock, mouth flush with the board edge: the cord leaves the bottom of the clock |
 | J2 12V SERVO | JST XH 2-pin | 1 +12 V, 2 GND | The servo board's barrel jack (a short lead with a 5.5 × 2.1 mm plug) |
 | J3 5V SCREEN | JST XH 2-pin | 1 +5 V, 2 GND | The screen board's 5 V pin (2×14 header J1 pin 4, GND pin 6), wires up the centre post |
 | J4 LED DATA | 1.25 mm 3-pin | 1 nc, 2 GND, 3 data | The servo board's RGB-LED header (5 V, GND, LED-OUT): a straight 1:1 cable; its 5 V pin lands on nc |

@@ -6,7 +6,8 @@ Front (towards the dial): only the WS2812B-2020 LEDs and their 100 nF capacitors
 can sit close behind the dial. Back: a 12 V -> 5 V buck (TPS563201), the connectors, and the
 servo board's mounting holes.
 
-  12 V IN  (J1) -> reverse-polarity diode -> 12 V to the servo board (J2) and the buck
+  12 V IN  (J1, SMD 5.5 x 2.1 mm DC jack at the bottom edge) -> reverse-polarity diode
+           -> 12 V to the servo board (J2) and the buck
   5 V      -> every LED (front copper pour) and the screen board (J3, wires up the centre post)
   LED DATA (J4) <- the servo board's RGB-LED header (5 V, GND, data out of its two on-board
                    LEDs); only GND and data are used here, its 5 V pin is left unconnected.
@@ -37,7 +38,7 @@ VIA = dict(d=0.6, drill=0.3)
 
 # The servo board (Waveshare Servo Driver with ESP32) mounts on the back on M2.5 standoffs:
 # its holes are 58 x 23 mm apart. Placeholder spot in the lower half until the mechanism exists.
-SERVO_CENTRE = (0.0, 43.0)
+SERVO_CENTRE = (0.0, 30.0)
 SERVO_HOLES = (58.0, 23.0)
 SERVO_OUTLINE = (65.0, 30.0)   # its board, drawn on the back silkscreen as a placement guide
 SERVO_HOLE_D = 2.7
@@ -55,6 +56,11 @@ BUCK = ("Package_TO_SOT_SMD", "TSOT-23-6", "TPS563201DDCR", "C116592")
 IND = ("Inductor_SMD", "L_Sunlord_MWSA0503S", "4.7uH MWSA0503S", "C408410")
 DIODE = ("Diode_SMD", "D_SMA", "SS54", "C22452")
 XH2 = ("Connector_JST", "JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical", "B2B-XH-A", "C158012")
+# SMD 5.5 x 2.1 mm DC jack, footprint imported from JLCPCB with easyeda2kicad (footprints/jlc.pretty)
+# and checked against XKB's drawing. Pin 1 centre (+), 2 sleeve (GND), 3 switch (unused).
+JACK = ("jlc", "DC-005-5A-2.0-SMT_C319134", "DC-005-5A-2.0-SMT", "C319134")
+JACK_ANGLE = 180.0    # the cord comes out of the bottom of the clock
+JACK_MOUTH = 8.05     # footprint origin to the jack's mouth, which sits on the board edge
 MX3 = ("Connector_Molex", "Molex_PicoBlade_53047-0310_1x03_P1.25mm_Vertical", "1.25mm 3P", "C481433")
 
 # WS2812B-2020 pads: 1 DOUT, 2 GND, 3 DIN, 4 VDD.
@@ -135,7 +141,27 @@ def arc_points(r, a0, a1, step=2.0):
     return [polar(r, a0 + span * i / n) for i in range(n + 1)]
 
 
+def jack_placement():
+    """Where the DC jack goes: on the back, mouth flush with the edge, pointing outward."""
+    return polar(BOARD_R - JACK_MOUTH, JACK_ANGLE), -(JACK_ANGLE + 90)
+
+
+def jack_keepout():
+    """Copper the jack puts on the back (pads, peg holes), grown by clearance + a via's radius."""
+    from shapely.geometry import box
+    at, rot = jack_placement()
+    j = Part(*JACK[:2], "J1", "", at, rot, back=True)
+    shapes = []
+    for n, pts in j.pads.items():
+        for i in range(len(pts)):
+            x, y = j.pad(n, i)
+            r = 1.6 if n == "" else 1.9          # pads are 2.2 x 3.0; pegs up to 2.0 across
+            shapes.append(disc(r, (x, y)))
+    return unary_union(shapes).buffer(0.5)
+
+
 def place_leds(L):
+    keepout = jack_keepout()
     sites = dial.led_sites()
     chain = chain_order(sites)
     leds = []
@@ -147,7 +173,11 @@ def place_leds(L):
                     nets={DOUT: dout, GND_PAD: "GND", DIN: din, VDD: "+5V"}, silk=False)
         # Its capacitor: inward, beside VDD; its GND end goes through a via to the back pour.
         cap = L.add(C100N, "C", local(s, CAP_X, -0.55), rot, nets={"1": "+5V", "2": "GND"}, silk=False)
-        gvia = local(s, CAP_X + 0.9, -0.55)
+        from shapely.geometry import Point
+        for dx in (0.9, 1.4, 1.9, 2.4):          # inward, clear of the DC jack's pads on the back
+            gvia = local(s, CAP_X + dx, -0.55)
+            if not keepout.contains(Point(gvia)):
+                break
         L.via(gvia, "GND")
         L.track([cap.pad(2), gvia], "GND")
         # The LED's GND pad: a via just anticlockwise of it, outside the data path.
@@ -235,8 +265,8 @@ class Block:
 
 
 REG_R = 61.0        # radius of the regulator (between the star points and the rim LEDs' vias)
-REG_ALPHA = 8.0     # its dial angle
-IN_ALPHA = 24.0     # the 12 V input block (J1, D1, J2)
+REG_ALPHA = 150.0   # its dial angle: lower right, near the DC jack at the bottom
+IN_ALPHA = 168.0    # the 12 V input block (J2, D1), between the regulator and the jack
 J3_ALPHA = -8.5     # 5 V out to the screen
 J4_ALPHA = -19.5    # LED data in from the servo board
 
@@ -293,15 +323,19 @@ def place_power(L, first_led_site):
     B.via(vtop, "+5V")
     B.track([P(rtop, 2), vtop], "+5V", 0.3)
 
-    # 12 V input block: J2 (12 V out to the servo board), the reverse-polarity diode, J1 (in).
+    # The DC jack (J1) at the bottom edge, then J2 (12 V out to the servo board) and the
+    # reverse-polarity diode just anticlockwise of it, on the side where its centre pin lands.
+    jat, jrot = jack_placement()
+    j1 = L.add(JACK, "J", jat, jrot, back=True, nets={"1": "+12V_IN", "2": "GND"}, silk=False)
+    L.track([j1.pad("1", 0), j1.pad("1", 1)], "+12V_IN", 1.0, "B.Cu")  # its two pin-1 pads
     bus_world = B.T(bus_end)
     r_bus = math.dist(bus_world, (0, 0))
     A = Block(L, IN_ALPHA)
     oa = (0.0, -r_bus)
     j2 = A.add(XH2, "J", (oa[0] - 9.0, oa[1]), 0, nets={"1": "+12V", "2": "GND"})
     d1 = A.add(DIODE, "D", oa, 0, nets={"1": "+12V", "2": "+12V_IN"})
-    j1 = A.add(XH2, "J", (oa[0] + 6.5, oa[1]), 0, nets={"1": "+12V_IN", "2": "GND"})
-    A.track([A.p(d1, 2), A.p(j1, 1)], "+12V_IN", POWER_W)
+    jack_pin1 = min((j1.pad("1", i) for i in range(2)), key=lambda q: math.dist(q, d1.pad(2)))
+    L.track([d1.pad(2), jack_pin1], "+12V_IN", 1.0, "B.Cu")
     jx, jy = A.p(j2, 1)
     kx, ky = A.p(d1, 1)
     A.track([A.p(j2, 1), (jx, jy + 2.3), (kx, jy + 2.3), A.p(d1, 1)], "+12V", POWER_W)
@@ -326,7 +360,7 @@ def place_power(L, first_led_site):
     r_r1 = math.dist(r1.pad(2), (0, 0))
     L.track([r1.pad(2), polar(r_r1, a_in), v_in], "LED_DATA0", DATA_W, "B.Cu")
     L.via(v_in, "LED_DATA0")
-    return dict(j1=j1, j2=j2, j3=j3, j4=j4, blocks=dict(j1=A, j2=A, j3=C, j4=D))
+    return dict(j1=j1, j2=j2, j3=j3, j4=j4, blocks=dict(j1=Block(L, JACK_ANGLE), j2=A, j3=C, j4=D))
 
 
 # ---- back silkscreen ----------------------------------------------------------------------------
@@ -343,19 +377,27 @@ def back_label(text, size, at, rot=0.0):
     return affinity.translate(g, *at).buffer(0.04)
 
 
+def upright(alpha):
+    """Rotation for a back label at dial angle alpha that keeps it reading upright from behind."""
+    return alpha if math.cos(math.radians(alpha)) >= 0 else alpha - 180
+
+
 def silk(L, conns):
     s = []
     blocks = conns["blocks"]
-    for key, text in (("j1", "12V IN"), ("j2", "12V SERVO"), ("j3", "5V SCREEN"), ("j4", "LED DATA")):
+    jb = blocks["j1"]
+    s.append(back_label("12V IN", 1.25, jb.T((0, -BOARD_R + 18.3)), upright(JACK_ANGLE)))
+    s.append(back_label("12V  ≥3A  5.5×2.1  centre +", 0.9, jb.T((0, -BOARD_R + 16.5)), upright(JACK_ANGLE)))
+    for key, text in (("j2", "12V SERVO"), ("j3", "5V SCREEN"), ("j4", "LED DATA")):
         j, B = conns[key], blocks[key]
         p1 = B.p(j, 1)
         p2 = B.p(j, 2 if key != "j4" else 3)
         mid = ((p1[0] + p2[0]) / 2, p1[1] + 6.2)          # inward of the connector
-        s.append(back_label(text, 1.25, B.T(mid), B.alpha))
+        s.append(back_label(text, 1.25, B.T(mid), upright(B.alpha)))
         if key != "j4":
-            s.append(back_label("+", 1.8, B.T((p1[0], p1[1] - 4.2)), B.alpha))
+            s.append(back_label("+", 1.8, B.T((p1[0], p1[1] - 4.2)), upright(B.alpha)))
         else:
-            s.append(back_label("nc  GND  DATA", 0.9, B.T(((p1[0] + p2[0]) / 2, p1[1] + 3.6)), B.alpha))
+            s.append(back_label("nc  GND  DATA", 0.9, B.T(((p1[0] + p2[0]) / 2, p1[1] + 3.6)), upright(B.alpha)))
     s.append(back_label("PLANETARY HOURS CLOCK", 2.2, (0, -25.5)))
     s.append(back_label("LED BOARD", 2.2, (0, -22.5)))
     sx, sy = SERVO_CENTRE

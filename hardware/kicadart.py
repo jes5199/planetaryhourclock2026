@@ -341,7 +341,9 @@ class Part:
         self.silk = silk
         self.at, self.rot, self.back, self.nets = at, rot, back, dict(nets or {})
         self.lcsc, self.bom = lcsc, bom
-        self.node = sexpr_parse((KICAD_FOOTPRINTS / f"{lib}.pretty" / f"{name}.kicad_mod").read_text())
+        local_lib = HERE / "footprints" / f"{lib}.pretty"   # project libraries (e.g. imported JLCPCB parts)
+        base = local_lib if local_lib.is_dir() else KICAD_FOOTPRINTS / f"{lib}.pretty"
+        self.node = sexpr_parse((base / f"{name}.kicad_mod").read_text())
         self.pads = {}
         for p in _find(self.node, "pad"):
             at_ = _find(p, "at")[0]
@@ -354,7 +356,9 @@ class Part:
         return (self.at[0] + dx, self.at[1] + dy)
 
     def to_board(self, board):
-        node = [Sym("footprint"), f"{self.lib}:{self.name}"]
+        # Project libraries aren't in KiCad's library table: leave their link off (as for holes).
+        local = (HERE / "footprints" / f"{self.lib}.pretty").is_dir()
+        node = [Sym("footprint"), self.name if local else f"{self.lib}:{self.name}"]
         side = "B.Cu" if self.back else "F.Cu"
         node += [[Sym("layer"), side], [Sym("uuid"), str(uuid.uuid4())],
                  [Sym("at"), _num(self.at[0] + board.cx), _num(self.at[1] + board.cy), _num(self.rot)]]
