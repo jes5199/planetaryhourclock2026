@@ -69,14 +69,16 @@ right, in the band between the star points and the rim LEDs; J3 and J4 are at th
 | --- | --- | --- | --- |
 | J1 12V IN | SMD 5.5 × 2.1 mm DC jack, XKB DC-005-5A-2.0-SMT (C319134), rated 2.5 A (JLCPCB's data; the "5A" in the name is a series code) | centre +12 V, sleeve GND, switch GND | A regulated 12 V brick (2–3 A is plenty; a bigger one is fine, the jack limits what's drawn). At 6 o'clock, mouth flush with the board edge: the cord leaves the bottom of the clock |
 | J2 12V SERVO | JST XH 2-pin | 1 +12 V, 2 GND | The servo board's barrel jack (a short lead with a 5.5 × 2.1 mm plug) |
-| J3 5V SCREEN | JST XH 2-pin | 1 +5 V (≈4.7 V, through D105), 2 GND | The screen board's 5 V pin (2×14 header J1 pin 4, GND pin 6), wires up the centre post |
-| J4 LED DATA | 1.25 mm 3-pin | 1 nc, 2 GND, 3 data | The servo board's RGB-LED header (5 V, GND, LED-OUT): a straight 1:1 cable; its 5 V pin lands on nc |
+| J3 5V SCREEN | JST XH 2-pin, just above the centre hole | 1 +5 V (≈4.7 V, through the SS14), 2 GND | The screen board's 5 V pin (2×14 header J1 pin 4, GND pin 6), wires straight up the centre post |
+| J4 LED DATA | Molex PicoBlade 53398-0371 (C293633), 1.25 mm 3-pin, surface mount, vertical | 1 nc, 2 GND, 3 data | The servo board's RGB-LED header H1 (5 V, GND, LED-OUT): a straight 1:1 cable; its 5 V pin lands on nc. Placed just past the servo board's left end (seen from the front), where H1's side-entry cable leaves, assuming the servo board mounts with its ports, OLED and jacks facing out and its DC jack towards J2. Buzz the cable out: H1's pin-1 end isn't marked |
 
 **Power.** 12 V in → Q1, an AO4407A P-channel MOSFET wired as an "ideal diode" for reverse-polarity
 protection (drain to the jack, source to the rail, gate to GND through 100k: 13 mΩ, so ~0.05 W at
 2 A where a Schottky would drop 0.5 V and make 1 W; reversed, it stays off; its 25 V gate rating
 needs no zener) → a 13 V TVS (SMAJ13A) and 100 µF bulk
-capacitor, so plugging in a live brick can't ring the rail past the regulator's 19 V limit → 12 V
+capacitor, which damp the ring when a live brick is plugged in (the TVS clamps at 21.5 V at its
+  full rated pulse, above the regulator's 19 V limit, but hot-plug ringing into 100 µF is far
+  smaller than that pulse) → 12 V
 to the servo board, and to a TPS563201 buck (3 × 10 µF in, 4.7 µH, 3 × 22 µF out, 56k/10k: 5.07 V,
 up to 3 A) → 5 V for the LEDs and, through an SS14, the screen. EN is tied to VIN (both rated
 19 V). The regulator's GND pin and input capacitors drop through vias to a GND island on the
@@ -102,7 +104,9 @@ Things the hardware doesn't protect against, so the firmware must:
 **Data chain** (written to `leds/led-chain.csv` with each LED's angle): the servo board's two
 on-board LEDs come first, then here: rim LEDs 0–83 clockwise from the start of Sunday's slice
 (so chain index = the firmware's `dayRingLed`), then the 7 star points, the 7 star corners and the
-4 compass tips, each set clockwise. Jumps between sets go through the back.
+4 compass tips, each set clockwise. Jumps between sets go through the back. The input runs from
+J4 (through 1k) round the back, crosses to the front in the star ring's one gap (between star
+points 6 and 0, which the chain jumps through the back), and comes in to LED 0's DIN.
 
 **Parts not in KiCad's library** live in `footprints/jlc.pretty` (`kicadart.Part` looks there
 first):
@@ -134,21 +138,22 @@ Before ordering:
 - Upload `out/leds-jlc/` to JLCPCB's quote page and check every part in the assembly preview.
   The CPL is corrected to JLCPCB's footprints, but the back side relies on the mirrored
   convention (180° − angle) that kicad-jlcpcb-tools and KiBot use; JLCPCB doesn't document it and
-  has changed it before. Odd back-side angles (U1 at 330°, D103 at 348°) make a wrong
+  has changed it before. Odd back-side angles (U1 at 330°, Q1 at 258°) make a wrong
   convention obvious in the preview. Check especially: the LEDs (data out at the package's marked
-  corner, which is the silk tick), U1's and Q1's pin-1 dots, the SMAJ13A's cathode band towards
+  corner, which is the silk tick), U1's pin-1 dot, Q1's pin-1 dot (at its J2-side, inward corner; pin 4, the gate, is beside its 100k), the SMAJ13A's cathode band towards
   the +12 V side, C111's + at the J2 side, and J2/J3's latches.
-- Tell JLCPCB the LEDs are MSL 5 (bake before use; rated 260 °C for 6 s) and let them choose
-  the reflow order: the back carries the heavy parts (the 11 mm jack, C111, L1), which shouldn't
+- Tell JLCPCB the LEDs are MSL 5 (bake before use; rated 260 °C for 6 s, at most two reflows,
+  the second within 8 hours of the first) and let them choose the reflow order: the back carries the heavy parts (the 11 mm jack, C111, L1), which shouldn't
   hang upside down through a second pass.
 - Check stock (2026-11-18): LEDs C5349955 ~80k (listed by LCSC as "XL-2020RGBC-2812B"; its
-  datasheet says XL-2020RGBC-WS2812B), jack C319134 ~4.4k, inductor C408410 459 (LCSC's product
-  page is broken; fallback Sunlord SWPA5040S4R7MT, C48496), 1.25 mm header C481433 ~0.9–1.5k,
+  datasheet says XL-2020RGBC-WS2812B), jack C319134 ~4.4k, inductor C408410 ~7k at JLCPCB (LCSC's
+  product page is broken; fallback Sunlord SWPA5040S4R7MT, C48496), 1.25 mm header C481433 ~0.9–1.5k,
   JST XH C158012 ~1.9k, TPS563201 ~4.3k. All extended parts.
 - A round board with parts near the edge may need JLCPCB's break-off rails for assembly. The DC
   jack sits flush with the edge at 6 o'clock (its corners overhang by ~0.1 mm): no rail there.
 - The through-hole connector pins poke ~1.5 mm out of the front: the gap to the dial (and any
-  baffle) has to clear them.
+  baffle) has to clear them. J3 sits on the back just above the centre hole, where the hand tubes'
+  gears will be: move it (`J3_R`) if the gear train needs that space.
 - Measure the servo board's hole spacing (58 × 23 mm from Waveshare's docs) with calipers.
 - KiCad's DRC reports 0 errors and 0 unconnected; the only warnings are `lib_footprint_mismatch`,
   because the generator strips the hidden silkscreen from the library footprints.

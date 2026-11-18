@@ -64,7 +64,8 @@ def fit(ours, theirs):
         rotated = [(n, *rot_kicad(x, y, d)) for n, x, y in ours]
         # Pair pads with the same number (some numbers appear twice, e.g. the jack's pin 1).
         pairs = []
-        for num in {n for n, _, _ in rotated}:
+        # Pads numbered in both footprints (mounting tabs are often unnumbered or "MP" in one).
+        for num in {n for n, _, _ in rotated} & {n for n, _, _ in theirs}:
             a = [(x, y) for n, x, y in rotated if n == num]
             b = [(x, y) for n, x, y in theirs if n == num]
             if len(a) != len(b):

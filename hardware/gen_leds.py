@@ -57,7 +57,9 @@ C22U = ("Capacitor_SMD", "C_0805_2012Metric", "22uF 25V", "C45783")
 R56K = ("Resistor_SMD", "R_0402_1005Metric", "56k", "C25796")
 R10K = ("Resistor_SMD", "R_0402_1005Metric", "10k", "C25744")
 R100K = ("Resistor_SMD", "R_0402_1005Metric", "100k", "C25741")
-R330 = ("Resistor_SMD", "R_0402_1005Metric", "330", "C25104")
+# Series resistor on the LED data input: 1k also limits the current into LED 0's input if the servo
+# board is powered (by USB) while this board isn't.
+R1K = ("Resistor_SMD", "R_0402_1005Metric", "1k", "C11702")
 BUCK = ("Package_TO_SOT_SMD", "TSOT-23-6", "TPS563201DDCR", "C116592")
 IND = ("Inductor_SMD", "L_Sunlord_MWSA0503S", "4.7uH MWSA0503S", "C408410")
 # Reverse-polarity protection: a P-channel MOSFET as an "ideal diode" (13 mohm; a Schottky in
@@ -72,10 +74,13 @@ XH2 = ("Connector_JST", "JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical", "B2B-XH-A", "C1
 JACK = ("jlc", "DC-005-5A-2.0-SMT_C319134", "DC-005-5A-2.0-SMT", "C319134")
 JACK_ANGLE = 180.0    # the cord comes out of the bottom of the clock
 JACK_MOUTH = 8.05     # footprint origin to the jack's mouth, which sits on the board edge
-MX3 = ("Connector_Molex", "Molex_PicoBlade_53047-0310_1x03_P1.25mm_Vertical", "1.25mm 3P", "C481433")
+# LED data in: Molex PicoBlade (1.25 mm) 3-pin, surface mount, vertical; mates with the servo
+# board's RGB-LED header cable. Pins 1-3 plus two mounting tabs (MP).
+MX3 = ("Connector_Molex", "Molex_PicoBlade_53398-0371_1x03-1MP_P1.25mm_Vertical", "53398-0371", "C293633")
 
 # LED pads: 1 DOUT, 2 GND, 3 DIN, 4 VDD.
 CAP_X = 2.8           # each LED's capacitor sits this far inward of it (clear of its courtyard)
+CAP_VIA = 1.4         # and its GND via this far beyond it: the hole clear of the 0402's pad
 DOUT, GND_PAD, DIN, VDD = "1", "2", "3", "4"
 
 
@@ -188,7 +193,7 @@ def place_leds(L):
         # Its capacitor: inward, beside VDD; its GND end goes through a via to the back pour.
         cap = L.add(C100N, "C", local(s, CAP_X, -LED_PY), rot, nets={"1": "+5V", "2": "GND"}, silk=False)
         from shapely.geometry import Point
-        for dx in (0.9, 1.4, 1.9, 2.4):          # inward, clear of the DC jack's pads on the back
+        for dx in (CAP_VIA, CAP_VIA + 0.5, CAP_VIA + 1.0, CAP_VIA + 1.5):   # clear of the jack's pads
             gvia = local(s, CAP_X + dx, -LED_PY)
             if not keepout.contains(Point(gvia)):
                 break
@@ -198,8 +203,6 @@ def place_leds(L):
         lvia = local(s, -LED_PX, LED_VIA_Y)
         L.via(lvia, "GND")
         L.track([led.pad(GND_PAD), lvia], "GND")
-        if n == 0:  # data comes in from the back through a via beside DIN
-            L.track([local(s, LED_PX, LED_VIA_Y), led.pad(DIN)], din)
         leds.append((s, led, din, dout))
 
     jumps = []
@@ -230,11 +233,11 @@ def place_leds(L):
             # On the back: straight in from the source LED to a radius between the two rings
             # (inside the source's capacitor vias, outside the target's GND vias), round to
             # just anticlockwise of the target, and in to its DIN via.
-            r_mid = ((s["r"] - CAP_X - 1.0) + (s2["r"] + 1.3)) / 2
+            r_mid = ((s["r"] - CAP_X - CAP_VIA - 0.1) + (s2["r"] + 1.3)) / 2
             a_out = math.degrees(math.atan2(v_out[0], -v_out[1]))
             a_tgt = s2["angle"] - math.degrees(3.0 / r_mid)
             w2 = local(s2, LED_PX, 3.0)
-            if s["r"] - CAP_X - 1.2 - r_mid < 0.6:
+            if s["r"] - CAP_X - CAP_VIA - 0.3 - r_mid < 0.6:
                 # Rings too close to pass inside the source's capacitor via: go round the
                 # outside of the source LED and come down on its anticlockwise side instead.
                 r_out = s["r"] + 2.0
@@ -280,9 +283,13 @@ class Block:
 
 REG_R = 61.0        # radius of the regulator (between the star points and the rim LEDs' vias)
 REG_ALPHA = 150.0   # its dial angle: lower right, near the DC jack at the bottom
-IN_ALPHA = 168.0    # the 12 V input block (J2, D1), between the regulator and the jack
-J3_ALPHA = -8.5     # 5 V out to the screen
-J4_ALPHA = -19.5    # LED data in from the servo board
+IN_ALPHA = 168.0    # the 12 V input block (J2, Q1), between the regulator and the jack
+J3_R = 10.0         # 5 V out to the screen: just above the centre hole, where its wires go up the post
+# LED data in: beside the servo board's RGB-LED header H1. With its servo ports, OLED and jacks
+# facing out (ESP32 side towards this board) and its DC jack towards J2, H1 is at its left end
+# (seen from the front), a side-entry header whose cable leaves over that edge.
+J4_AT = (SERVO_CENTRE[0] - SERVO_OUTLINE[0] / 2 - 4.0, SERVO_CENTRE[1])
+DATA_R = 60.0       # the data line's run round to LED 0, between the star points and rim vias
 
 
 def place_power(L, first_led_site):
@@ -363,7 +370,7 @@ def place_power(L, first_led_site):
     # Drain to the jack, source to the 12 V rail, gate to GND through 100k: plugged in the right
     # way round the body diode lifts the source and the gate turns the FET fully on; reversed,
     # it stays off.
-    q1 = A.add(PFET, "Q", oa, 0, nets={"1": "+12V", "2": "+12V", "3": "+12V", "4": "GATE",
+    q1 = A.add(PFET, "Q", (oa[0], oa[1] + 0.6), 0, nets={"1": "+12V", "2": "+12V", "3": "+12V", "4": "GATE",
                                         "5": "+12V_IN", "6": "+12V_IN", "7": "+12V_IN", "8": "+12V_IN"})
     rg = A.add(R100K, "R", (oa[0], oa[1] - 3.7), 90, nets={"1": "GATE", "2": "GND"})
     sx_, _ = A.p(q1, 1)
@@ -382,7 +389,7 @@ def place_power(L, first_led_site):
     A.track([A.p(j2, 1), (jx, jy + 2.3), (kx, jy + 2.3), (kx, s_ys[-1])], "+12V", 1.5)
     # Behind the FET: a 13 V TVS and 100 uF of bulk capacitance, so plugging in a live brick
     # can't ring the 12 V rail up past U1's 19 V limit.
-    tvs = A.add(TVS, "D", (oa[0] + 0.8, oa[1] + 5.0), 0, nets={"1": "+12V", "2": "GND"})
+    tvs = A.add(TVS, "D", (oa[0] + 0.8, oa[1] + 5.6), 0, nets={"1": "+12V", "2": "GND"})
     cbulk = A.add(C100U, "C", (oa[0] - 8.0, oa[1] + 7.6), 0, nets={"1": "+12V", "2": "GND"})
     A.track([A.p(tvs, 1), (A.p(tvs, 1)[0], jy + 2.3), (kx, jy + 2.3)], "+12V", 1.0)
     A.track([(jx, jy + 2.3), (jx, A.p(cbulk, 1)[1]), A.p(cbulk, 1)], "+12V", 1.0)
@@ -401,28 +408,40 @@ def place_power(L, first_led_site):
     L.track([bus_world] + arc_points(r_bus, a0, a1, step=1.0)[1:-1] + [j2w], "+12V", 0.6, "B.Cu")
 
     # 5 V to the screen board, through a Schottky: the screen board's 5 V pin is its USB VBUS,
-    # so without it this board and a computer on that USB port would feed each other.
-    C = Block(L, J3_ALPHA)
-    j3 = C.add(XH2, "J", (-1.25, -REG_R), 0, nets={"1": "+5V_SCREEN", "2": "GND"})
-    d2 = C.add(DIODE_SCREEN, "D", (-3.25, -REG_R + 5.0), 180, nets={"1": "+5V_SCREEN", "2": "+5V"})
+    # so without it this board and a computer on that USB port would feed each other. Just above
+    # the centre hole, so its wires go straight up the screen's post.
+    C = Block(L, 0.0)
+    j3 = C.add(XH2, "J", (-1.25, -J3_R), 0, nets={"1": "+5V_SCREEN", "2": "GND"})
+    d2 = C.add(DIODE_SCREEN, "D", (-3.25, -J3_R - 6.0), 180, nets={"1": "+5V_SCREEN", "2": "+5V"})
     C.track([C.p(d2, 1), C.p(j3, 1)], "+5V_SCREEN", 0.8)
-    v5 = (C.p(d2, 2)[0] - 2.2, C.p(d2, 2)[1])      # clear of the star ring's track on the front
-    v5b = (v5[0] - 1.0, v5[1])
+    v5 = (C.p(d2, 2)[0] - 2.2, C.p(d2, 2)[1])
+    v5b = (v5[0], v5[1] - 1.0)
     for v in (v5, v5b):
         C.via(v, "+5V")
     C.track([C.p(d2, 2), v5, v5b], "+5V", 0.8)
 
-    # LED data in from the servo board: 330 ohm, then up to LED 0 on the front.
-    D = Block(L, J4_ALPHA)
-    j4 = D.add(MX3, "J", (-1.25, -REG_R), 0, nets={"2": "GND", "3": "LED_DATA_RAW"})
-    v_in = local(first_led_site, LED_PX, LED_VIA_Y)
-    r1 = D.add(R330, "R", (-1.5, -REG_R - 3.6), 180, nets={"1": "LED_DATA_RAW", "2": "LED_DATA0"})
-    D.track([D.p(j4, 3), (D.p(j4, 3)[0], D.p(r1, 1)[1] + 0.9), (D.p(r1, 1)[0], D.p(r1, 1)[1] + 0.9), D.p(r1, 1)],
-            "LED_DATA_RAW", 0.25)
-    a_in = math.degrees(math.atan2(v_in[0], -v_in[1]))
-    r_r1 = math.dist(r1.pad(2), (0, 0))
-    L.track([r1.pad(2), polar(r_r1, a_in), v_in], "LED_DATA0", DATA_W, "B.Cu")
-    L.via(v_in, "LED_DATA0")
+    # LED data in, beside the servo board's H1: 1k, then round the back, up to the front
+    # in the gap in the star ring (star 6 to star 0 has no track), and in to LED 0's DIN.
+    D = Block(L, 0.0)
+    j4 = D.add(MX3, "J", J4_AT, 90, nets={"2": "GND", "3": "LED_DATA_RAW", "MP": "GND"})
+    p3 = D.p(j4, 3)
+    r1 = D.add(R1K, "R", (p3[0], p3[1] - 5.75), 90, nets={"1": "LED_DATA_RAW", "2": "LED_DATA0"})
+    D.track([p3, D.p(r1, 1)], "LED_DATA_RAW", 0.25)
+    s0 = first_led_site
+    a_led = s0["angle"] % 360
+    r_star = [x for x in dial.led_sites() if x["kind"] == "star"][0]["r"]
+    r_back = r_star - 1.0                          # between the star caps' vias and the star LEDs' vias
+    a_r1 = math.degrees(math.atan2(r1.pad(2)[0], -r1.pad(2)[1])) % 360
+    a_up = 276.0                                   # where it goes to the front, in the star-ring gap
+    v_up = polar(DATA_R, a_up)
+    L.track([r1.pad(2), polar(r_back, a_r1 + 5)] + arc_short(r_back, a_r1 + 5, a_up - 6)[1:]
+            + [v_up], "LED_DATA0", DATA_W, "B.Cu")
+    L.via(v_up, "LED_DATA0")
+    b0 = local(s0, s0["r"] - DATA_R, 2.0)
+    a_b0 = math.degrees(math.atan2(b0[0], -b0[1])) % 360
+    led0 = L.parts[0]                               # LEDs are placed first: D1 is chain LED 0
+    L.track([v_up] + arc_points(DATA_R, a_up, a_b0)[1:] + [b0, local(s0, 3.0, 2.0), led0.pad(DIN)],
+            "LED_DATA0", DATA_W, "F.Cu")
     return dict(j1=j1, j2=j2, j3=j3, j4=j4, blocks=dict(j1=Block(L, JACK_ANGLE), j2=A, j3=C, j4=D),
                 zones=dict(gnd_island=island, in12=zin, v12=z12))
 
@@ -452,18 +471,21 @@ def silk(L, conns):
     jb = blocks["j1"]
     s.append(back_label("12V IN", 1.25, jb.T((0, -BOARD_R + 18.3)), upright(JACK_ANGLE)))
     s.append(back_label("12V  5.5×2.1  centre +", 1.1, jb.T((0, -BOARD_R + 16.5)), upright(JACK_ANGLE)))
-    for key, text in (("j2", "12V SERVO"), ("j3", "5V SCREEN"), ("j4", "LED DATA")):
+    j4 = conns["j4"]
+    x4 = j4.pad(2)[0]
+    y4 = max(j4.pad("MP", i)[1] for i in range(2))
+    s.append(back_label("LED DATA", 1.25, (x4 - 1.4, y4 + 3.2)))
+    s.append(back_label("top to bottom: DATA GND nc", 0.9, (x4 - 1.4, y4 + 5.0)))
+    for key, text in (("j2", "12V SERVO"), ("j3", "5V SCREEN")):
         j, B = conns[key], blocks[key]
         p1 = B.p(j, 1)
-        p2 = B.p(j, 2 if key != "j4" else 3)
-        mid = ((p1[0] + p2[0]) / 2, p1[1] + {"j2": -6.4, "j3": 9.6}.get(key, 6.2))   # beside it
+        p2 = B.p(j, 2)
+        mid = ((p1[0] + p2[0]) / 2, p1[1] + {"j2": -6.4, "j3": -8.6}.get(key, 6.2))   # beside it
         s.append(back_label(text, 1.25, B.T(mid), upright(B.alpha)))
-        if key != "j4":
-            s.append(back_label("+", 1.8, B.T((p1[0], p1[1] - 4.2)), upright(B.alpha)))
-        else:
-            s.append(back_label("DATA  GND  nc", 1.1, B.T(((p1[0] + p2[0]) / 2, p1[1] + 3.6)), upright(B.alpha)))
-    s.append(back_label("PLANETARY HOURS CLOCK", 2.2, (0, -25.5)))
-    s.append(back_label("LED BOARD", 2.2, (0, -22.5)))
+        plus = (p1[0], p1[1] + 4.4) if key == "j3" else (p1[0], p1[1] - 4.2)   # J3: inward, D2 is outward
+        s.append(back_label("+", 1.8, B.T(plus), upright(B.alpha)))
+    s.append(back_label("PLANETARY HOURS CLOCK", 2.2, (0, -44.0)))
+    s.append(back_label("LED BOARD", 2.2, (0, -41.0)))
     sx, sy = SERVO_CENTRE
     w, h = SERVO_OUTLINE
     from shapely.geometry import box
