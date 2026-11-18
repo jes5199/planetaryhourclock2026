@@ -20,12 +20,14 @@ and mask cleared on both faces, lit from an LED board behind.
 
 | Dial element | Ink |
 | --- | --- |
-| Rim, ring lines, slice edges, ticks, star, rose | Gold |
+| Rim, ring lines, slice edges, ticks, star | Gold |
+| Compass rose | Each point split down its spine: anticlockwise facet gold, clockwise facet white; diagonals under cardinals, the rose over everything else |
 | Ruler band, daytime half of each slice | Gold, with the day ruler's symbol knocked out in black |
 | Ruler band, night quarters | Black, with the night ruler's symbol in white |
-| Day names, planet names, hour numerals | White |
+| Day names | White, bent along the arc of their band |
+| Planet names, hour numerals | White (numerals crossing the rose's white facets are knocked out in black) |
 | Daytime half of the hour ring | Copper under the black mask (a faint sheen) |
-| 84 rim LEDs, 7 star points, 7 star corners, 4 compass tips | Fibreglass windows |
+| 84 rim LEDs, 7 star points, 7 star corners, 4 compass tips | Fibreglass windows, each with a 0.5 mm non-plated pinhole drilled through its centre |
 
 Gold edges are defined by the mask openings; the copper underneath extends 0.1 mm further so
 small registration errors don't show bare edges.
@@ -36,6 +38,7 @@ small registration errors don't show bare edges.
 - **Black solder mask, white silkscreen, ENIG finish**, both sides (also in the stackup).
 - The centre hole (8 mm) is a placeholder until the hand movement is chosen. No mounting holes
   yet.
+- 102 pinholes, 0.5 mm non-plated (the usual fab minimum for NPTH; `PINHOLE_D` in `gen_dial.py`).
 - Silk glyphs are grown by 0.035 mm so Cormorant Garamond's hairlines survive silkscreen.
 - Order the coupon at 0.8 mm and 1.6 mm, light it from behind, and pick a window style (and a
   board thickness) before ordering the dial.

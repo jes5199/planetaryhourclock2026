@@ -20,7 +20,7 @@ from shapely import affinity
 from shapely.geometry import Point
 from shapely.ops import unary_union
 
-from kicadart import EMPTY, Board, Font, disc, place, polar, radial, ring, sector, segment
+from kicadart import EMPTY, Board, Font, arc, disc, place, polar, radial, ring, sector, segment
 
 OUT = pathlib.Path(__file__).resolve().parent / "dial" / "dial.kicad_pcb"
 
@@ -41,6 +41,7 @@ RIM_LINE_R = 72.20          # the brass rim, kept clear of the board edge
 EDGE_CLEAR = 0.55           # copper keep-back from board edges (KiCad default rule: 0.5)
 WINDOW_D = {"rim": 2.0, "star": 1.6, "corner": 2.2, "compass": 2.2}  # LED windows, bare FR4
 WINDOW_CLEAR = 0.2          # copper keep-back around a window
+PINHOLE_D = 0.5             # non-plated hole drilled through the middle of each window (fab minimum)
 GOLD_UNDER_MASK = 0.10      # copper extends this far under the mask past each gold edge
 SILK_THICKEN = 0.035        # grow silk glyphs (Cormorant's hairlines are fine for silkscreen)
 SILK_CLEAR = 0.10           # keep silk this far from mask openings (fabs clip it there)
@@ -104,7 +105,7 @@ def build():
         silk.append(place(symbol(night_ruler(mod(k - 1, 7)), 13 * PX), U(261), (base + a_s) / 2))
         silk.append(place(symbol(night_ruler(k), 13 * PX), U(261), (a_e + base + W) / 2))
         # Day name, outermost band.
-        silk.append(place(serif_700.text(WEEK[k].upper(), 17 * PX, 3 * PX), U(295), pos(k) * W))
+        silk.append(arc(serif_700.text(WEEK[k].upper(), 17 * PX, 3 * PX), U(295), pos(k) * W))
 
     # Slice edges across the two outer bands, and the planet ring's twelfth-hour ticks.
     for p in range(7):
@@ -126,15 +127,25 @@ def build():
         silk.append(place(serif_600.text(ROMAN[q], 12 * PX), U(123), -90 + (q + 0.5) * 15, rotate=False))
         silk.append(place(serif_600.text(ROMAN[q], 12 * PX), U(123), 90 + (q + 0.5) * 15, rotate=False))
 
-    # Compass rose: four long cardinals and four short diagonals, light facet gold, dark black.
-    for k in range(4):
-        a = 45 + k * 90
-        gold.append(_tri((0, 0), polar(U(124), a), polar(U(40), a - 22.5)))
-        a = k * 90
-        gold.append(_tri((0, 0), polar(U(141), a), polar(U(52), a - 30)))
+    # Compass rose: four short diagonals under four long cardinals. Each point is split down
+    # its spine: the anticlockwise facet gold, the clockwise facet white. Painted in order, so
+    # each facet hides whatever it covers.
+    facets = []
+    for long_, tip, base, half in ((False, 124, 40, 22.5), (True, 141, 52, 30)):
+        for k in range(4):
+            a = k * 90 + (0 if long_ else 45)
+            facets.append(("gold", _tri((0, 0), polar(U(tip), a), polar(U(base), a - half))))
+            facets.append(("white", _tri((0, 0), polar(U(tip), a), polar(U(base), a + half))))
+    rose_gold, rose_white = [], []
+    for i, (ink, f) in enumerate(facets):
+        covered = unary_union([g for _, g in facets[i + 1:]]) if i + 1 < len(facets) else EMPTY
+        visible = f.difference(covered)
+        (rose_gold if ink == "gold" else rose_white).append(visible)
+    rose = unary_union([f for _, f in facets])
 
     gold = unary_union(gold)
     gold = gold.difference(unary_union(knockouts).buffer(0.08))
+    gold = gold.difference(rose).union(unary_union(rose_gold))  # the rose sits on top
 
     # The star {7/2}: each line joins the end of one day's slice (midnight) to the start of the
     # next day's, drawn over a black outline so later lines cross earlier ones like a weave.
@@ -158,6 +169,7 @@ def build():
         windows.append(disc(WINDOW_D["corner"] / 2, polar(U(167), pl * W)))
     for a in (0, 90, 180, 270):
         windows.append(disc(WINDOW_D["compass"] / 2, polar(U(141), a)))
+    pinholes = [w.centroid.coords[0] for w in windows]
     windows = unary_union(windows)
 
     # Keep-outs: the board edge, the centre hole, and around each window.
@@ -166,8 +178,11 @@ def build():
     gold = gold.intersection(keep)
     copper = unary_union([gold.buffer(GOLD_UNDER_MASK), unary_union(under_mask)]).intersection(keep)
     mask_open = unary_union([gold, windows])
-    silk = unary_union(silk).buffer(SILK_THICKEN).difference(mask_open.buffer(SILK_CLEAR)).intersection(inside)
-    return copper, mask_open, silk, windows
+    silk = unary_union(silk).buffer(SILK_THICKEN)
+    # White rose facets: numerals that cross them are knocked out (black) rather than lost.
+    rose_white = unary_union(rose_white).difference(silk.buffer(0.15))
+    silk = unary_union([silk, rose_white]).difference(mask_open.buffer(SILK_CLEAR)).intersection(inside)
+    return copper, mask_open, silk, windows, pinholes
 
 
 def _tri(a, b, c):
@@ -176,7 +191,7 @@ def _tri(a, b, c):
 
 
 def main():
-    copper, mask_open, silk, windows = build()
+    copper, mask_open, silk, windows, pinholes = build()
     board = Board()
     board.fill(copper, "F.Cu")
     board.fill(mask_open, "F.Mask")
@@ -184,6 +199,8 @@ def main():
     board.fill(windows, "B.Mask")       # the LEDs shine in from the back
     board.circle(BOARD_R, "Edge.Cuts")
     board.circle(CENTER_HOLE_D / 2, "Edge.Cuts")
+    for i, at in enumerate(pinholes):  # a pinhole through the middle of every LED window
+        board.hole(PINHOLE_D, at, ref=f"H{i + 1}")
     OUT.parent.mkdir(exist_ok=True)
     board.write(OUT)
     print(f"wrote {OUT} ({len(board.items)} items)")

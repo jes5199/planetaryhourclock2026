@@ -14,7 +14,8 @@ from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
 from shapely import affinity
 from shapely.geometry import LineString, MultiPolygon, Point, Polygon
-from shapely.ops import split, unary_union
+from shapely.ops import split, transform, unary_union
+import shapely
 
 HERE = pathlib.Path(__file__).resolve().parent
 EMPTY = Polygon()
@@ -146,6 +147,22 @@ def place(geom, r, ang, rotate=True):
         geom = affinity.rotate(geom, ang, origin=(0, 0))  # clockwise on a y-down page
     x, y = polar(r, ang)
     return affinity.translate(geom, x, y)
+
+
+def arc(geom, r, ang, inward=False, max_seg=0.05):
+    """Bend a shape centred on the origin (like `Font.text`) around a circle: its centre line
+    follows radius r, centred on angle ang. Tops point outward (reading clockwise), or inward
+    with `inward` (reading anticlockwise, upright at the bottom of a dial)."""
+    geom = shapely.segmentize(geom, max_seg)
+    sign = -1 if inward else 1
+
+    def warp(x, y, z=None):
+        import numpy as np
+        a = np.radians(ang) + sign * np.asarray(x) / r
+        rr = r - sign * np.asarray(y)  # y down: up (negative y) is outward
+        return rr * np.sin(a), -rr * np.cos(a)
+
+    return transform(warp, geom)
 
 
 # ---- KiCad output ----------------------------------------------------------------------
