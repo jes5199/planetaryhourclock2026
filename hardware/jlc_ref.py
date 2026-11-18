@@ -25,8 +25,9 @@ CACHE = HERE / "out" / "jlc-ref"
 # Parts where JLCPCB's pad numbers don't follow the part's function, so the pad-number fit
 # would turn them the wrong way. Checked by hand against the footprint's polarity marks.
 OVERRIDES = {
-    # SS54: JLCPCB's SMA footprint numbers the cathode end "2" (its cathode band and pin-1 dot
-    # are both at that end). Our pad 1 is the cathode, at the same end: no turn.
+    # SS54 (no longer on the LED board, kept as the example of why this table exists): JLCPCB's
+    # SMA footprint numbers the cathode end "2" (its cathode band and pin-1 dot are both at
+    # that end). Our pad 1 is the cathode, at the same end: no turn.
     "C22452": dict(turn=0, dx=0.0, dy=0.0, why="cathode band and pin-1 dot at JLCPCB's pad 2 end"),
 }
 

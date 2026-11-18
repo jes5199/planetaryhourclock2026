@@ -6,7 +6,7 @@ Front (towards the dial): only the WS2812B-2020 LEDs and their 100 nF capacitors
 can sit close behind the dial. Back: a 12 V -> 5 V buck (TPS563201), the connectors, and the
 servo board's mounting holes.
 
-  12 V IN  (J1, SMD 5.5 x 2.1 mm DC jack at the bottom edge) -> reverse-polarity diode
+  12 V IN  (J1, SMD 5.5 x 2.1 mm DC jack at the bottom edge) -> reverse-polarity P-FET
            -> 12 V to the servo board (J2) and the buck
   5 V      -> every LED (front copper pour) and the screen board (J3, wires up the centre post)
   LED DATA (J4) <- the servo board's RGB-LED header (5 V, GND, data out of its two on-board
@@ -60,7 +60,10 @@ R100K = ("Resistor_SMD", "R_0402_1005Metric", "100k", "C25741")
 R330 = ("Resistor_SMD", "R_0402_1005Metric", "330", "C25104")
 BUCK = ("Package_TO_SOT_SMD", "TSOT-23-6", "TPS563201DDCR", "C116592")
 IND = ("Inductor_SMD", "L_Sunlord_MWSA0503S", "4.7uH MWSA0503S", "C408410")
-DIODE = ("Diode_SMD", "D_SMA", "SS54", "C22452")
+# Reverse-polarity protection: a P-channel MOSFET as an "ideal diode" (13 mohm; a Schottky in
+# its place would drop ~0.5 V and run hot at servo currents). AO4407A: -30 V, -12 A, VGS +-25 V,
+# so the gate can sit at GND through a resistor with no zener. Pins 1-3 S, 4 G, 5-8 D.
+PFET = ("Package_SO", "SOIC-8_3.9x4.9mm_P1.27mm", "AO4407A", "C16072")
 DIODE_SCREEN = ("Diode_SMD", "D_SMA", "SS14", "C2480")
 TVS = ("Diode_SMD", "D_SMA", "SMAJ13A", "C148214")
 XH2 = ("Connector_JST", "JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical", "B2B-XH-A", "C158012")
@@ -348,7 +351,7 @@ def place_power(L, first_led_site):
     B.track([P(rtop, 2), vtop], "+5V", 0.3)
 
     # The DC jack (J1) at the bottom edge, then J2 (12 V out to the servo board) and the
-    # reverse-polarity diode just anticlockwise of it, on the side where its centre pin lands.
+    # reverse-polarity FET just anticlockwise of it, on the side where its centre pin lands.
     jat, jrot = jack_placement()
     j1 = L.add(JACK, "J", jat, jrot, back=True, nets={"1": "+12V_IN", "2": "GND", "3": "GND"}, silk=False)
     L.track([j1.pad("1", 0), j1.pad("1", 1)], "+12V_IN", 1.0, "B.Cu")  # its two pin-1 pads
@@ -356,27 +359,41 @@ def place_power(L, first_led_site):
     r_bus = math.dist(bus_world, (0, 0))
     A = Block(L, IN_ALPHA)
     oa = (0.0, -r_bus)
-    j2 = A.add(XH2, "J", (oa[0] - 9.0, oa[1]), 0, nets={"1": "+12V", "2": "GND"})
-    d1 = A.add(DIODE, "D", oa, 0, nets={"1": "+12V", "2": "+12V_IN"})
-    jack_pin1 = min((j1.pad("1", i) for i in range(2)), key=lambda q: math.dist(q, d1.pad(2)))
-    L.track([d1.pad(2), jack_pin1], "+12V_IN", 2.0, "B.Cu")
+    j2 = A.add(XH2, "J", (oa[0] - 9.8, oa[1]), 0, nets={"1": "+12V", "2": "GND"})
+    # Drain to the jack, source to the 12 V rail, gate to GND through 100k: plugged in the right
+    # way round the body diode lifts the source and the gate turns the FET fully on; reversed,
+    # it stays off.
+    q1 = A.add(PFET, "Q", oa, 0, nets={"1": "+12V", "2": "+12V", "3": "+12V", "4": "GATE",
+                                        "5": "+12V_IN", "6": "+12V_IN", "7": "+12V_IN", "8": "+12V_IN"})
+    rg = A.add(R100K, "R", (oa[0], oa[1] - 3.7), 90, nets={"1": "GATE", "2": "GND"})
+    sx_, _ = A.p(q1, 1)
+    dx_, _ = A.p(q1, 5)
+    s_ys = sorted(A.p(q1, n)[1] for n in (1, 2, 3))
+    d_ys = sorted(A.p(q1, n)[1] for n in (5, 6, 7, 8))
+    A.track([(sx_, s_ys[0]), (sx_, s_ys[-1])], "+12V", 1.0)        # tie the source pins
+    A.track([(dx_, d_ys[0]), (dx_, d_ys[-1])], "+12V_IN", 1.0)     # and the drain pins
+    gx, gy = A.p(q1, 4)
+    A.track([(gx, gy), (gx + 0.9, A.p(rg, 1)[1]), A.p(rg, 1)], "GATE", 0.3)
+    q_in = max((A.p(q1, n) for n in (5, 6, 7, 8)), key=lambda q: q[1])   # the inward drain pin
+    jack_pin1 = min((j1.pad("1", i) for i in range(2)), key=lambda q: math.dist(q, A.T(q_in)))
+    L.track([A.T(q_in), jack_pin1], "+12V_IN", 2.0, "B.Cu")
     jx, jy = A.p(j2, 1)
-    kx, ky = A.p(d1, 1)
-    A.track([A.p(j2, 1), (jx, jy + 2.3), (kx, jy + 2.3), A.p(d1, 1)], "+12V", 1.5)
-    # Behind the diode: a 13 V TVS and 100 uF of bulk capacitance, so plugging in a live brick
+    kx = sx_
+    A.track([A.p(j2, 1), (jx, jy + 2.3), (kx, jy + 2.3), (kx, s_ys[-1])], "+12V", 1.5)
+    # Behind the FET: a 13 V TVS and 100 uF of bulk capacitance, so plugging in a live brick
     # can't ring the 12 V rail up past U1's 19 V limit.
     tvs = A.add(TVS, "D", (oa[0] + 0.8, oa[1] + 5.0), 0, nets={"1": "+12V", "2": "GND"})
     cbulk = A.add(C100U, "C", (oa[0] - 8.0, oa[1] + 7.6), 0, nets={"1": "+12V", "2": "GND"})
     A.track([A.p(tvs, 1), (A.p(tvs, 1)[0], jy + 2.3), (kx, jy + 2.3)], "+12V", 1.0)
     A.track([(jx, jy + 2.3), (jx, A.p(cbulk, 1)[1]), A.p(cbulk, 1)], "+12V", 1.0)
-    # Copper pours on the power path, for current and to spread the diode's heat.
+    # Copper pours on the power path, for current and to spread any heat.
     from shapely.geometry import Polygon
     # They stay inward of the rim capacitors' GND vias (y > -1.4 here: some are nudged inward
     # near the jack) and clear of J2's GND pin,
     # which reach GND only through the back pour.
     zin = Polygon([A.T((oa[0] + x, oa[1] + y)) for x, y in ((0.9, -1.4), (9.5, -1.4), (9.5, 3.6), (0.9, 3.6))])
     z12 = Polygon([A.T((oa[0] + x, oa[1] + y)) for x, y in
-                   ((-11.0, 1.3), (-3.6, 1.3), (-3.6, -2.0), (-0.6, -2.0), (-0.6, 3.9), (-11.0, 3.9))])
+                   ((-11.0, 1.3), (-3.8, 1.3), (-3.8, -1.1), (-1.2, -1.1), (-1.2, 3.9), (-11.0, 3.9))])
     # The bus follows the arc from the regulator to J2.
     a0 = math.degrees(math.atan2(bus_world[0], -bus_world[1]))
     j2w = j2.pad(1)

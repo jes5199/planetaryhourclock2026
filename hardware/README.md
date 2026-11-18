@@ -62,7 +62,7 @@ Copper: a 5 V pour plus the data tracks, and a small GND island under the regula
 **Back**: the power hub and connectors, a GND pour, and four M2.5 holes (58 × 23 mm) for the
 servo board, currently in the lower half until the hand mechanism is designed (`SERVO_CENTRE`).
 No pour copper within 3 mm of any mounting hole on either face, so a standoff or screw head
-scratched through the mask can't bridge 5 V to GND. The DC jack, the diode, TVS, bulk capacitor, J2 and the regulator sit together at the bottom
+scratched through the mask can't bridge 5 V to GND. The DC jack, the protection FET, TVS, bulk capacitor, J2 and the regulator sit together at the bottom
 right, in the band between the star points and the rim LEDs; J3 and J4 are at the top left.
 
 | Connector | Part | Pins | Goes to |
@@ -72,20 +72,23 @@ right, in the band between the star points and the rim LEDs; J3 and J4 are at th
 | J3 5V SCREEN | JST XH 2-pin | 1 +5 V (≈4.7 V, through D105), 2 GND | The screen board's 5 V pin (2×14 header J1 pin 4, GND pin 6), wires up the centre post |
 | J4 LED DATA | 1.25 mm 3-pin | 1 nc, 2 GND, 3 data | The servo board's RGB-LED header (5 V, GND, LED-OUT): a straight 1:1 cable; its 5 V pin lands on nc |
 
-**Power.** 12 V in → SS54 (reverse-polarity protection) → a 13 V TVS (SMAJ13A) and 100 µF bulk
+**Power.** 12 V in → Q1, an AO4407A P-channel MOSFET wired as an "ideal diode" for reverse-polarity
+protection (drain to the jack, source to the rail, gate to GND through 100k: 13 mΩ, so ~0.05 W at
+2 A where a Schottky would drop 0.5 V and make 1 W; reversed, it stays off; its 25 V gate rating
+needs no zener) → a 13 V TVS (SMAJ13A) and 100 µF bulk
 capacitor, so plugging in a live brick can't ring the rail past the regulator's 19 V limit → 12 V
 to the servo board, and to a TPS563201 buck (3 × 10 µF in, 4.7 µH, 3 × 22 µF out, 56k/10k: 5.07 V,
 up to 3 A) → 5 V for the LEDs and, through an SS14, the screen. EN is tied to VIN (both rated
 19 V). The regulator's GND pin and input capacitors drop through vias to a GND island on the
 front, right under the chip, so the input current loop is a few millimetres. The power path
-(jack → diode → J2) runs on copper pours. Pad connections to the pours: thermal relief on the
+(jack → Q1 → J2) runs on copper pours. Pad connections to the pours: thermal relief on the
 front (the LEDs and their 0402 capacitors, so both ends of each heat evenly during reflow), solid
 for every part on the back (the power parts need the copper for current and heat). U1's GND pin
 also has two vias straight down to the front island.
 
 Things the hardware doesn't protect against, so the firmware must:
 - **Servo stall current.** Two STS3215s stalling draw ~2.7 A each, more than the jack's 2.5 A,
-  and it all passes the SS54 (~1.5 W at 3 A). Set the servos' torque limit so a jammed hand can't
+  and through the jack. Set the servos' torque limit so a jammed hand can't
   pull that. Normal running (hands moving slowly, LEDs mostly dim) is well under 1 A.
 - **Brightness.** The XL-2020 LEDs draw up to 5 mA per colour, so all 102 at full white is about
   1.5 A, inside the regulator's 3 A. A firmware cap is still sensible (the screen and heat share
@@ -117,8 +120,9 @@ differ from KiCad's: the LEDs and the regulator have pin 1 in the opposite corne
 connectors are centred where KiCad puts pin 1 at the origin. `jlc_ref.py` downloads JLCPCB's
 footprint for every LCSC part (easyeda2kicad, cached in `out/jlc-ref/`), matches its pads to ours,
 and records the turn and offset; `cpl.py` (KiCad's Python) writes the CPL from the board with those
-corrections. One override: JLCPCB's SS54 footprint numbers its cathode end "2", so it is matched
-by its cathode band instead of by pad number. A check that places JLCPCB's footprints by the
+corrections. Most need 0° or 180°; the SO-8 FET needs 90°. `jlc_ref.py` has an override table
+for parts whose JLCPCB pad numbers don't follow their polarity marks (an earlier SS54 numbered
+its cathode end "2"; matching by number would have put it in backwards). A check that places JLCPCB's footprints by the
 finished CPL lands every pad on ours (within 0.03 mm for the LEDs, 0.2 mm for the regulator and
 diodes, where the two libraries' pads differ in size).
 
@@ -132,7 +136,7 @@ Before ordering:
   convention (180° − angle) that kicad-jlcpcb-tools and KiBot use; JLCPCB doesn't document it and
   has changed it before. Odd back-side angles (U1 at 330°, D103 at 348°) make a wrong
   convention obvious in the preview. Check especially: the LEDs (data out at the package's marked
-  corner, which is the silk tick), U1's pin-1 dot, the SS54 and SMAJ13A cathode bands towards
+  corner, which is the silk tick), U1's and Q1's pin-1 dots, the SMAJ13A's cathode band towards
   the +12 V side, C111's + at the J2 side, and J2/J3's latches.
 - Tell JLCPCB the LEDs are MSL 5 (bake before use; rated 260 °C for 6 s) and let them choose
   the reflow order: the back carries the heavy parts (the 11 mm jack, C111, L1), which shouldn't
