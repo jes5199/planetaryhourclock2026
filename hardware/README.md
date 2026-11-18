@@ -36,8 +36,10 @@ small registration errors don't show bare edges.
 
 - **Thickness 0.8 mm** (in the board stackup): brighter windows than 1.6 mm.
 - **Black solder mask, white silkscreen, ENIG finish**, both sides (also in the stackup).
-- The centre hole (8 mm) is for the hands' concentric tubes; its size is a placeholder until
-  the tubes are chosen (`CENTER_HOLE_D`).
+- The centre hole (6.5 mm) clears the hands' tube stack, all K&S telescoping brass (0.014"
+  wall): a fixed 5/32" post that holds the screen and carries its 5 V and GND wires, the gold
+  hand's 3/16" tube on it, and the hour hand's 7/32" tube (5.56 mm) outside that. Nothing else
+  can hold the screen up: the hands sweep the whole gap between the dial and the screen.
 - Four M2.5 standoff holes (2.7 mm, non-plated) at 17 mm radius on the diagonals, inside the
   46 mm screen's shadow so they never show. The hands sweep between the dial and the screen, so
   standoffs go *behind* the dial (to the LED board and frame), not in front.

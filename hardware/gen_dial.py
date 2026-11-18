@@ -36,7 +36,10 @@ def U(units):
 # ---- options -------------------------------------------------------------------------------
 
 BOARD_R = U(324)            # 73.06 mm
-CENTER_HOLE_D = 8.0         # mm, for the hand tubes (placeholder until the movement is chosen)
+# Centre: K&S telescoping brass (1/32" steps, 0.014" wall). A fixed 5/32" post carries the
+# screen and its wires; the gold hand turns on a 3/16" tube over it, the hour hand on a 7/32"
+# tube over that. The hole clears the 7/32" (5.56 mm) outer tube.
+CENTER_HOLE_D = 6.5         # mm
 RIM_LINE_R = 72.20          # the brass rim, kept clear of the board edge
 EDGE_CLEAR = 0.55           # copper keep-back from board edges (KiCad default rule: 0.5)
 WINDOW_D = {"rim": 2.0, "star": 1.6, "corner": 2.2, "compass": 2.2}  # LED windows, bare FR4
