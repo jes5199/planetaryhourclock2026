@@ -41,6 +41,11 @@ RIM_LINE_R = 72.20          # the brass rim, kept clear of the board edge
 EDGE_CLEAR = 0.55           # copper keep-back from board edges (KiCad default rule: 0.5)
 WINDOW_D = {"rim": 2.0, "star": 1.6, "corner": 2.2, "compass": 2.2}  # LED windows, bare FR4
 WINDOW_CLEAR = 0.2          # copper keep-back around a window
+SCREEN_R = U(102)           # 23 mm: the AMOLED floats in front and hides everything inside this
+MOUNT_D = 2.7               # standoff holes (M2.5 clearance), hidden behind the screen
+MOUNT_R = 17.0              # their radius: clear of the centre hole, inside the screen with room for a nut
+MOUNT_ANGLES = (45, 135, 225, 315)
+MOUNT_CLEAR = 0.4           # copper keep-back around a mounting hole
 PINHOLE_D = 0.5             # non-plated hole drilled through the middle of each window (fab minimum)
 GOLD_UNDER_MASK = 0.10      # copper extends this far under the mask past each gold edge
 SILK_THICKEN = 0.035        # grow silk glyphs (Cormorant's hairlines are fine for silkscreen)
@@ -174,6 +179,8 @@ def build():
 
     # Keep-outs: the board edge, the centre hole, and around each window.
     inside = disc(BOARD_R - EDGE_CLEAR).difference(disc(CENTER_HOLE_D / 2 + EDGE_CLEAR))
+    for a in MOUNT_ANGLES:
+        inside = inside.difference(disc(MOUNT_D / 2 + MOUNT_CLEAR, polar(MOUNT_R, a)))
     keep = inside.difference(windows.buffer(WINDOW_CLEAR))
     gold = gold.intersection(keep)
     copper = unary_union([gold.buffer(GOLD_UNDER_MASK), unary_union(under_mask)]).intersection(keep)
@@ -199,6 +206,8 @@ def main():
     board.fill(windows, "B.Mask")       # the LEDs shine in from the back
     board.circle(BOARD_R, "Edge.Cuts")
     board.circle(CENTER_HOLE_D / 2, "Edge.Cuts")
+    for i, a in enumerate(MOUNT_ANGLES):  # standoffs to the LED board / frame behind
+        board.hole(MOUNT_D, polar(MOUNT_R, a), ref=f"M{i + 1}")
     for i, at in enumerate(pinholes):  # a pinhole through the middle of every LED window
         board.hole(PINHOLE_D, at, ref=f"H{i + 1}")
     OUT.parent.mkdir(exist_ok=True)

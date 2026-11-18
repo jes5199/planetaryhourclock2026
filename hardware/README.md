@@ -36,8 +36,11 @@ small registration errors don't show bare edges.
 
 - **Thickness 0.8 mm** (in the board stackup): brighter windows than 1.6 mm.
 - **Black solder mask, white silkscreen, ENIG finish**, both sides (also in the stackup).
-- The centre hole (8 mm) is a placeholder until the hand movement is chosen. No mounting holes
-  yet.
+- The centre hole (8 mm) is for the hands' concentric tubes; its size is a placeholder until
+  the tubes are chosen (`CENTER_HOLE_D`).
+- Four M2.5 standoff holes (2.7 mm, non-plated) at 17 mm radius on the diagonals, inside the
+  46 mm screen's shadow so they never show. The hands sweep between the dial and the screen, so
+  standoffs go *behind* the dial (to the LED board and frame), not in front.
 - 102 pinholes, 0.5 mm non-plated (the usual fab minimum for NPTH; `PINHOLE_D` in `gen_dial.py`).
 - Silk glyphs are grown by 0.035 mm so Cormorant Garamond's hairlines survive silkscreen.
 - Order the coupon at 0.8 mm and 1.6 mm, light it from behind, and pick a window style (and a
