@@ -74,7 +74,8 @@ XH2 = ("Connector_JST", "JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical", "B2B-XH-A", "C1
 # and checked against XKB's drawing. Pin 1 centre (+), 2 sleeve (GND), 3 switch (unused).
 JACK = ("jlc", "DC-005-5A-2.0-SMT_C319134", "DC-005-5A-2.0-SMT", "C319134")
 JACK_ANGLE = 180.0    # the cord comes out of the bottom of the clock
-JACK_MOUTH = 8.05     # footprint origin to the jack's mouth, which sits on the board edge
+JACK_MOUTH = 8.05 + 0.3   # footprint origin to the jack's mouth, recessed 0.3 mm from the round
+                          # edge so the body's corners (9 mm wide) don't overhang it
 # LED data in: 1.25 mm (MX1.25 / PicoBlade-style) 3-pin, surface mount, vertical; mates with the
 # servo board's RGB-LED header cable. HCTL HC-1.25-3PLT (Molex's own 53398-0371 had 6 in stock);
 # its land pattern is Molex's (KiCad's footprint) with the signal pads lengthened to HCTL's
@@ -150,7 +151,16 @@ class Layout:
         return p
 
     def track(self, pts, net, width=DATA_W, layer="F.Cu"):
-        board_track(self.board, avoid_holes(pts), width, layer, self.nets[net])
+        pts = avoid_holes(pts)
+        # Merge points closer than 0.05 mm (arc joins leave hair-thin segments), keeping both ends.
+        clean = [pts[0]]
+        for p in pts[1:-1]:
+            if math.dist(p, clean[-1]) >= 0.05:
+                clean.append(p)
+        if len(clean) > 1 and math.dist(clean[-1], pts[-1]) < 0.05:
+            clean.pop()
+        clean.append(pts[-1])
+        board_track(self.board, clean, width, layer, self.nets[net])
 
     def via(self, at, net):
         board_via(self.board, at, self.nets[net], **VIA)

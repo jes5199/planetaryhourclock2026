@@ -79,8 +79,12 @@ def night_ruler(k):
 
 # ---- fonts -----------------------------------------------------------------------------------
 
-serif_700 = Font("CormorantGaramond[wght].ttf", weight=700)
-serif_600 = Font("CormorantGaramond[wght].ttf", weight=600)
+# The dial's lettering: (file in fonts/, weight) for names and for numerals. Montserrat 600 was
+# tried (fonts/ has it) and set aside.
+NAME_FONT = ("CormorantGaramond[wght].ttf", 700)
+NUMERAL_FONT = ("CormorantGaramond[wght].ttf", 600)
+serif_700 = Font(NAME_FONT[0], weight=NAME_FONT[1])
+serif_600 = Font(NUMERAL_FONT[0], weight=NUMERAL_FONT[1])
 symbols = Font("NotoSansSymbols[wght].ttf", weight=500)
 
 

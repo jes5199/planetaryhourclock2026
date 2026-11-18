@@ -73,7 +73,7 @@ board's ESP32 antenna (both faces), since its radio links it to the screen board
 
 | Connector | Part | Pins | Goes to |
 | --- | --- | --- | --- |
-| J1 12V IN | SMD 5.5 × 2.1 mm DC jack, XKB DC-005-5A-2.0-SMT (C319134), rated 2.5 A (JLCPCB's data; the "5A" in the name is a series code) | centre +12 V, sleeve GND, switch GND | A regulated 12 V brick (2–3 A is plenty; a bigger one is fine, the jack limits what's drawn). At 6 o'clock, mouth flush with the board edge: the cord leaves the bottom of the clock |
+| J1 12V IN | SMD 5.5 × 2.1 mm DC jack, XKB DC-005-5A-2.0-SMT (C319134), rated 2.5 A (JLCPCB's data; the "5A" in the name is a series code) | centre +12 V, sleeve GND, switch GND | A regulated 12 V brick (2–3 A is plenty; a bigger one is fine, the jack limits what's drawn). At 6 o'clock, mouth 0.3 mm in from the board edge (so its corners don't overhang): the cord leaves the bottom of the clock |
 | J2 12V SERVO | JST XH 2-pin | 1 +12 V, 2 GND | The servo board's barrel jack: a short (10–15 cm, ≥ 22 AWG) lead with a 5.5 × 2.1 mm plug, centre + on pin 1. Use a right-angle plug: a straight one reaches nearly to this board's edge |
 | J3 5V SCREEN | JST XH 2-pin, just above the centre hole | 1 +5 V (≈4.7 V, through the SS14), 2 GND | The screen board's 5 V pin (2×14 header J1 pin 4, GND pin 6), wires straight up the centre post |
 | J4 LED DATA | HCTL HC-1.25-3PLT (C2845389), 1.25 mm (MX1.25 / PicoBlade-style) 3-pin, surface mount, vertical, on Molex 53398-0371's land pattern (Molex's own part had 6 in stock) | 1 nc, 2 GND, 3 data | The servo board's RGB-LED header H1 (5 V, GND, LED-OUT): a straight 1:1 cable; its 5 V pin lands on nc. Placed 10 mm (courtyard to board edge) past the servo board's left end (seen from the front), where H1's side-entry cable leaves (`J4_CLEAR`), assuming the servo board mounts with its ports, OLED and jacks facing out and its DC jack towards J2. Buzz the cable out: H1's pin-1 end isn't marked. H1 is a 1.25 mm MX1.25/PicoBlade-style header (Waveshare calls it "XH1.25"; checked 2026-11-18: its plug pulls straight out, no latch, so not JST GH), so a double-ended MX1.25 3-pin cable mates with both |
@@ -149,8 +149,9 @@ Before ordering:
   convention obvious in the preview. Check especially: the LEDs (data out at the package's marked
   corner, which is the silk tick), U1's pin-1 dot, Q1's pin-1 dot (at its J2-side, inward corner; pin 4, the gate, is beside its 100k), the SMAJ13A's cathode band towards
   the +12 V side, C111's + at the J2 side, and J2/J3's latches.
-- Tell JLCPCB the LEDs are MSL 5 (bake before use; rated 260 °C for 6 s, at most two reflows,
-  the second within 8 hours of the first) and let them choose the reflow order: the back carries the heavy parts (the 11 mm jack, C111, L1), which shouldn't
+- Tell JLCPCB the LEDs are MSL 5 (bake before use) and ask for a reflow peak of 245 °C or less:
+  the datasheet recommends 240 ± 5 °C for 6 s (260 °C is the absolute maximum), at most two
+  reflows, the second within 8 hours of the first and let them choose the reflow order: the back carries the heavy parts (the 11 mm jack, C111, L1), which shouldn't
   hang upside down through a second pass.
 - Check stock (2026-11-18): LEDs C5349955 ~80k (listed by LCSC as "XL-2020RGBC-2812B"; its
   datasheet says XL-2020RGBC-WS2812B), jack C319134 ~4.4k, inductor C408410 ~7k at JLCPCB (LCSC's
@@ -158,7 +159,7 @@ Before ordering:
   AO4407A C16072 ~9k, JST XH C158012 ~474k, TPS563201 ~4.3k. All extended parts.
 - A round board with parts near the edge may need JLCPCB's break-off rails for assembly. The rim
   LEDs' pads are 0.93 mm from the edge all the way round, so ask for tabs placed between parts,
-  and none at 6 o'clock, where the DC jack sits flush (its corners overhang by ~0.1 mm).
+  and none at 6 o'clock, where the DC jack's mouth is 0.3 mm in from the edge.
 - The through-hole connector pins poke ~1.5 mm out of the front: the gap to the dial (and any
   baffle) has to clear them. J3 sits on the back just above the centre hole, where the hand tubes'
   gears will be: move it (`J3_R`) if the gear train needs that space.
