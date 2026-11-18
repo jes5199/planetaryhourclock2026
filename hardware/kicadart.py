@@ -117,11 +117,16 @@ class Font:
             name = self.cmap[ord(ch)]
             pen = _FlattenPen(self.glyphs)
             self.glyphs[name].draw(pen)
-            # Outer contours wind one way and holes the other: union each group, subtract.
-            pos = [Polygon(c).buffer(0) for c in pen.contours if _signed_area(c) > 0]
-            neg = [Polygon(c).buffer(0) for c in pen.contours if _signed_area(c) < 0]
-            a, b = unary_union(pos), unary_union(neg)
-            self._cache[ch] = b.difference(a) if b.area > a.area else a.difference(b)
+            # Outer contours wind one way and holes the other. Take them largest first: a contour
+            # winding like the largest one adds ink, the other way removes it. That keeps nested
+            # shapes (a dot inside a ring, as in ☉) and still merges overlapping outlines.
+            contours = sorted(pen.contours, key=lambda c: -abs(_signed_area(c)))
+            outer_sign = _signed_area(contours[0]) > 0 if contours else True
+            ink = Polygon()
+            for c in contours:
+                poly = Polygon(c).buffer(0)
+                ink = ink.union(poly) if (_signed_area(c) > 0) == outer_sign else ink.difference(poly)
+            self._cache[ch] = ink
         return self._cache[ch], self.hmtx[self.cmap[ord(ch)]][0]
 
     def text(self, s, size, spacing=0.0):
