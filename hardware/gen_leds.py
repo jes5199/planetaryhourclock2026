@@ -215,7 +215,7 @@ def arc_points(r, a0, a1, step=2.0):
 
 
 def jack_placement():
-    """Where the DC jack goes: on the back, mouth flush with the edge, pointing outward."""
+    """Where the DC jack goes: on the back, mouth 0.3 mm in from the edge, pointing outward."""
     return polar(BOARD_R - JACK_MOUTH, JACK_ANGLE), -(JACK_ANGLE + 90)
 
 

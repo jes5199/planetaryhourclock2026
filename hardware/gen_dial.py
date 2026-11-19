@@ -50,7 +50,8 @@ MOUNT_R = 14.0              # their radius: clear of the centre hole, inside the
                             # and (on the LED board) clear of the servo board's top edge
 MOUNT_ANGLES = (45, 135, 225, 315)
 MOUNT_CLEAR = 0.4           # copper keep-back around a mounting hole
-BACK_HATCH = (0.4, 3.2)     # balancing copper on the back: 45° cross-hatch, line width and pitch (mm),
+BACK_HATCH = (0.4, 3.2)     # balancing copper on the back: 45° cross-hatch, line width and spacing
+                            # along x (mm; 2.26 mm square to the lines, so ~31% copper),
                             # about the front's share of copper, so the thin dial stays flat
 PINHOLE_D = 0.5             # non-plated hole drilled through the middle of each window (fab minimum)
 GOLD_UNDER_MASK = 0.10      # copper extends this far under the mask past each gold edge
@@ -210,7 +211,11 @@ def build():
         inside = inside.difference(disc(MOUNT_D / 2 + MOUNT_CLEAR, polar(MOUNT_R, a)))
     keep = inside.difference(windows.buffer(WINDOW_CLEAR))
     gold = gold.intersection(keep)
-    copper = unary_union([gold.buffer(GOLD_UNDER_MASK), unary_union(under_mask)]).intersection(keep)
+    copper = unary_union([gold.buffer(GOLD_UNDER_MASK), unary_union(under_mask)])
+    # Close the hairline gaps the under-mask growth leaves between neighbouring gold shapes (as
+    # little as 0.02 mm, below any fab's spacing rule). The mask defines the gold's edges, so the
+    # art doesn't change.
+    copper = copper.buffer(0.1).buffer(-0.1).intersection(keep)
     mask_open = unary_union([gold, windows])
     silk = unary_union(silk).buffer(SILK_THICKEN)
     # White rose facets: numerals that cross them are knocked out (black) rather than lost.
@@ -230,9 +235,10 @@ def build():
     # Trim the sharp tips left where lines meet the round edge and the window cut-outs, and drop
     # crumbs: fabs flag both as slivers.
     back = back.buffer(-0.12, join_style="mitre").buffer(0.12, join_style="mitre")
+    back = back.buffer(0.1).buffer(-0.1).intersection(keep)        # and close hairline gaps
     from shapely.geometry import MultiPolygon
     parts = back.geoms if hasattr(back, "geoms") else [back]
-    back = unary_union([p for p in parts if p.area > 0.4])
+    back = unary_union([p for p in parts if p.area > 1.0])
     return copper, mask_open, silk, windows, pinholes, back
 
 
