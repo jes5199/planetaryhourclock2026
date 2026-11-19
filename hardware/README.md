@@ -142,7 +142,7 @@ its cathode end "2"; matching by number would have put it in backwards). A check
 finished CPL lands every pad on ours (within 0.03 mm for the LEDs, 0.2 mm for the regulator and
 diodes, where the two libraries' pads differ in size).
 
-**Reviewed** (2026-11-18) seven times by independent agents against the datasheets: pinouts,
+**Reviewed** (2026-11-18) eight times by independent agents against the datasheets: pinouts,
 the LED chain, the buck design, JLCPCB rules and stock, the CPL against JLCPCB's footprints, and
 the fit with the dial. Their findings are fixed above.
 
